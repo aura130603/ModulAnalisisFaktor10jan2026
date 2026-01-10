@@ -1,0 +1,26 @@
+node_modules
+.next
+
+# Editor / OS artifacts
+.idea
+.vscode
+*.swp
+*.DS_Store
+
+# Logs
+*.log
+
+# Env files
+.env*
+
+# Tests & docs
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+*.md
+
+# Example data (large SAV demo files)
+# public/exampleData
+
+# VCS
+.git 

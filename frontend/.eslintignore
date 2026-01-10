@@ -1,0 +1,19 @@
+# Build artifacts
+.next/
+.next-dev/
+.swc/
+dist/
+coverage/
+
+# Deps and caches
+node_modules/
+*.tsbuildinfo
+
+# Public assets (not source)
+public/
+
+# Logs and reports
+*.log
+
+# Misc
+.vercel/

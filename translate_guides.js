@@ -1,0 +1,87 @@
+// Script untuk menerjemahkan panduan data-guide ke bahasa Indonesia
+// Ini adalah panduan untuk menerjemahkan file-file yang tersisa
+
+const translations = {
+  // SortCasesGuide.tsx
+  'Interface & Component Functionality': 'Antarmuka & Fungsionalitas Komponen',
+  'Components within the Sort Cases dialog': 'Komponen dalam dialog Urutkan Kasus',
+  'Available Variables List': 'Daftar Variabel Tersedia',
+  'Displays all variables available to use as sorting keys.': 'Menampilkan semua variabel yang tersedia untuk digunakan sebagai kunci pengurutan.',
+  'Sort By List': 'Daftar Urutkan Berdasarkan',
+  'This list holds variables selected as sorting keys.': 'Daftar ini menyimpan variabel yang dipilih sebagai kunci pengurutan.',
+  'The order here determines sorting priority.': 'Urutan di sini menentukan prioritas pengurutan.',
+  'Sorting Controls': 'Kontrol Pengurutan',
+  'When a variable in the "Sort By" list is highlighted:': 'Ketika variabel dalam daftar "Urutkan Berdasarkan" disorot:',
+  'Sort Direction': 'Arah Pengurutan',
+  'Choose to sort in ascending or descending order.': 'Pilih untuk mengurutkan dalam urutan naik atau turun.',
+  'Sort Priority': 'Prioritas Pengurutan',
+  'Buttons to change the sorting priority of variables.': 'Tombol untuk mengubah prioritas pengurutan variabel.',
+  
+  // WeightCasesGuide.tsx
+  'Feature Overview': 'Ringkasan Fitur',
+  'Explanation of case weighting feature': 'Penjelasan fitur pembobotan kasus',
+  'Variable-Based Weighting': 'Pembobotan Berbasis Variabel',
+  'You can select one numeric variable from the available list.': 'Anda dapat memilih satu variabel numerik dari daftar yang tersedia.',
+  'Values from this variable will be used to weight each case.': 'Nilai dari variabel ini akan digunakan untuk membobot setiap kasus.',
+  'Type Validation': 'Validasi Jenis',
+  'The dialog automatically filters the list to show only numeric variables': 'Dialog secara otomatis memfilter daftar untuk hanya menampilkan variabel numerik',
+  'as valid candidates for weighting.': 'sebagai kandidat yang valid untuk pembobotan.',
+  'Case Exclusions': 'Pengecualian Kasus',
+  'Any case with zero, negative, or missing values for the selected': 'Setiap kasus dengan nilai nol, negatif, atau hilang untuk variabel',
+  'weighting variable will automatically be excluded from analyses': 'pembobotan yang dipilih akan secara otomatis dikecualikan dari analisis',
+  'using these weights.': 'yang menggunakan bobot ini.',
+  'Global Setting': 'Pengaturan Global',
+  'Weighting configuration is a global setting. The dialog displays': 'Konfigurasi pembobotan adalah pengaturan global. Dialog menampilkan',
+  'the currently active weighting variable, or "Do not weight cases"': 'variabel pembobotan yang sedang aktif, atau "Jangan membobot kasus"',
+  'if none is selected.': 'jika tidak ada yang dipilih.',
+  'Disabling Weighting': 'Menonaktifkan Pembobotan',
+  'To turn off weighting, simply remove the variable from the': 'Untuk mematikan pembobotan, cukup hapus variabel dari',
+  '"Weight cases by" list and confirm by clicking "OK".': 'daftar "Bobot kasus berdasarkan" dan konfirmasi dengan mengklik "OK".',
+  
+  // TransposeGuide.tsx
+  'Transpose Data Feature': 'Fitur Transpose Data',
+  'This guide explains the \'Transpose\' functionality': 'Panduan ini menjelaskan fungsionalitas \'Transpose\'',
+  'a powerful tool for restructuring your dataset by swapping rows and columns.': 'alat yang kuat untuk merestrukturisasi dataset Anda dengan menukar baris dan kolom.',
+  'Available Variables List': 'Daftar Variabel Tersedia',
+  'Displays all variables available in your current dataset.': 'Menampilkan semua variabel yang tersedia dalam dataset Anda saat ini.',
+  'Variables to Transpose': 'Variabel untuk Ditranspose',
+  'This list holds the variables you\'ve selected to become rows': 'Daftar ini menyimpan variabel yang telah Anda pilih untuk menjadi baris',
+  'in your new dataset.': 'dalam dataset baru Anda.',
+  'Name Variable (Optional)': 'Variabel Nama (Opsional)',
+  'This field is optional. You can move': 'Bidang ini opsional. Anda dapat memindahkan',
+  'variable here. Values from each row of this variable will be': 'variabel ke sini. Nilai dari setiap baris variabel ini akan',
+  'used as names for the new variables (columns) to be created.': 'digunakan sebagai nama untuk variabel baru (kolom) yang akan dibuat.',
+  
+  // Common terms
+  'Workflow': 'Alur Kerja',
+  'Usage Examples': 'Contoh Penggunaan',
+  'Step-by-step': 'Langkah demi langkah',
+  'Prerequisites': 'Prasyarat',
+  'Tips and Best Practices': 'Tips dan Praktik Terbaik',
+  'Related Topics': 'Topik Terkait',
+  'Important': 'Penting',
+  'Note': 'Catatan',
+  'Warning': 'Peringatan',
+  'Success': 'Berhasil',
+  'Error': 'Kesalahan',
+  'Information': 'Informasi',
+  'Tip': 'Tips',
+  'Example': 'Contoh',
+  'Feature': 'Fitur',
+  'Step': 'Langkah',
+  'Process': 'Proses',
+  'Configuration': 'Konfigurasi',
+  'Settings': 'Pengaturan',
+  'Options': 'Opsi',
+  'Variables': 'Variabel',
+  'Dataset': 'Dataset',
+  'Data': 'Data',
+  'Analysis': 'Analisis',
+  'Statistics': 'Statistik',
+  'Results': 'Hasil',
+  'Output': 'Output',
+  'Input': 'Input'
+};
+
+console.log('Kamus terjemahan untuk panduan data-guide telah dibuat');
+console.log('Gunakan kamus ini untuk menerjemahkan file-file yang tersisa secara konsisten');

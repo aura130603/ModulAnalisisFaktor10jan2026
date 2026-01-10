@@ -1,0 +1,23 @@
+node_modules
+dist
+
+# Editor / OS artifacts
+.idea
+.vscode
+*.swp
+*.DS_Store
+
+# Logs
+*.log
+
+# Env files
+.env*
+
+# Tests & docs
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+*.md
+
+# VCS
+.git 

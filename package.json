@@ -1,0 +1,55 @@
+{
+  "name": "statify-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
+    "dev:frontend": "cross-env PORT=3001 npm run dev --workspace=frontend",
+    "dev:backend": "cross-env PORT=5001 npm run dev --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:load:basic": "k6 run load-tests/frontend/basic-load-test.js",
+    "test:load:operations": "k6 run load-tests/frontend/spss-operations-test.js",
+    "test:load:routes": "k6 run load-tests/frontend/frontend-routes-test.js",
+    "test:load:sav": "k6 run load-tests/backend/sav-apis-test.js",
+    "test:load:smoke": "k6 run --vus 5 --duration 10s load-tests/frontend/basic-load-test.js",
+    "test:load:comprehensive": "k6 run --out json=load-tests/dashboard/raw-metrics.json load-tests/run-comprehensive-tests.js",
+    "test:load:dashboard": "cd load-tests && powershell -ExecutionPolicy Bypass -File run-dashboard.ps1",
+    "test:load:dashboard:bat": "cd load-tests && run-dashboard.bat",
+    "dashboard:open": "start load-tests/dashboard/index.html",
+    "dashboard:serve": "cd load-tests/dashboard && python -m http.server 8080",
+    "install:all": "npm install --workspaces"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "eslint-plugin-jest-dom": "^5.5.0",
+    "eslint-plugin-testing-library": "^7.5.3",
+    "jest": "^30.0.2",
+    "jest-environment-jsdom": "^30.0.2",
+    "k6": "^0.0.0",
+    "ts-jest": "^29.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "dependencies": {
+    "jstat": "^1.9.6",
+    "react-dropzone": "^14.3.8",
+    "recharts": "^3.6.0"
+  }
+}

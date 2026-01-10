@@ -1,0 +1,309 @@
+import {useEffect, useMemo, useState} from "react";
+import {
+    MultivariateContainerProps,
+    MultivariateMainType,
+    MultivariateType,
+} from "@/components/Modals/Analyze/general-linear-model/multivariate/types/multivariate";
+import {
+    MultivariateDefault
+} from "@/components/Modals/Analyze/general-linear-model/multivariate/constants/multivariate-default";
+import {MultivariateDialog} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/dialog";
+import {MultivariateModel} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/model";
+import {MultivariateContrast} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/contrast";
+import {MultivariatePlots} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/plots";
+import {MultivariatePostHoc} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/posthoc";
+import {MultivariateEMMeans} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/emmeans";
+import {MultivariateSave} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/save";
+import {MultivariateOptions} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/options";
+import {MultivariateBootstrap} from "@/components/Modals/Analyze/general-linear-model/multivariate/dialogs/bootstrap";
+import {Dialog, DialogContent, DialogTitle} from "@/components/ui/dialog";
+import {useModal} from "@/hooks/useModal";
+import {useVariableStore} from "@/stores/useVariableStore";
+import {useDataStore} from "@/stores/useDataStore";
+import {
+    analyzeMultivariate
+} from "@/components/Modals/Analyze/general-linear-model/multivariate/services/multivariate-analysis";
+import {clearFormData, getFormData, saveFormData} from "@/hooks/useIndexedDB";
+
+export const MultivariateContainer = ({
+    onClose,
+}: MultivariateContainerProps) => {
+    const variables = useVariableStore((state) => state.variables);
+    const dataVariables = useDataStore((state) => state.data);
+    const tempVariables = useMemo(
+        () => variables.map((variable) => variable.name),
+        [variables]
+    );
+
+    const [formData, setFormData] = useState<MultivariateType>({
+        ...MultivariateDefault,
+    });
+    const [isMainOpen, setIsMainOpen] = useState(true);
+    const [isModelOpen, setIsModelOpen] = useState(false);
+    const [isContrastOpen, setIsContrastOpen] = useState(false);
+    const [isPlotsOpen, setIsPlotsOpen] = useState(false);
+    const [isPostHocOpen, setIsPostHocOpen] = useState(false);
+    const [isEMMeansOpen, setIsEMMeansOpen] = useState(false);
+    const [isSaveOpen, setIsSaveOpen] = useState(false);
+    const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+    const [isBootstrapOpen, setIsBootstrapOpen] = useState(false);
+
+    const { closeModal } = useModal();
+
+    useEffect(() => {
+        const loadFormData = async () => {
+            try {
+                const savedData = await getFormData("Multivariate");
+                if (savedData) {
+                    const { id, ...formDataWithoutId } = savedData;
+                    setFormData(formDataWithoutId);
+                } else {
+                    setFormData({ ...MultivariateDefault });
+                }
+            } catch (error) {
+                console.error("Failed to load form data:", error);
+            }
+        };
+
+        loadFormData();
+    }, []);
+
+    useEffect(() => {
+        setFormData((prev) => {
+            // Create a copy of the previous state to modify
+            const newState = { ...prev };
+
+            // Update discretize based on AnalysisVars (if it exists)
+            if (prev.main.DepVar) {
+                // newState.discretize = {
+                //     ...prev.discretize,
+                //     VariablesList: [...prev.main.AnalysisVars],
+                // };
+            }
+
+            // Update missing.SupplementaryVariables based on SuppleVars (if it exists)
+            if (prev.main.FixFactor) {
+                newState.contrast = {
+                    ...prev.contrast,
+                    FactorList: [...prev.main.FixFactor],
+                };
+                newState.plots = {
+                    ...prev.plots,
+                    SrcList: [...prev.main.FixFactor],
+                };
+                newState.posthoc = {
+                    ...prev.posthoc,
+                    SrcList: [...prev.main.FixFactor],
+                };
+            }
+
+            // Update based on LabelingVars (if it exists)
+            if (prev.main.Covar) {
+                // newState.output = {
+                //     ...newState.output, // Use the already updated output state
+                //     LabelingVars: [...prev.main.LabelingVars],
+                // };
+            }
+
+            // Combine AnalysisVars and SuppleVars for QuantifiedVars
+            const depVars = prev.main.DepVar ? [...prev.main.DepVar] : [];
+            const factorVars = prev.main.FixFactor
+                ? [...prev.main.FixFactor]
+                : [];
+            const covarVars = prev.main.Covar ? [...prev.main.Covar] : [];
+            const wlsVars = prev.main.WlsWeight ? [prev.main.WlsWeight] : [];
+
+            newState.model = {
+                ...prev.model,
+                FactorsVar: [...factorVars, ...covarVars],
+            };
+
+            newState.emmeans = {
+                ...prev.emmeans,
+                SrcList: [...factorVars],
+            };
+
+            const usedVariables = [
+                ...depVars,
+                ...factorVars,
+                ...covarVars,
+                ...wlsVars,
+            ];
+
+            const updatedVariables = tempVariables.filter(
+                (variable) => !usedVariables.includes(variable)
+            );
+
+            newState.bootstrap = {
+                ...prev.bootstrap,
+                Variables: updatedVariables,
+            };
+
+            return newState;
+        });
+    }, [
+        formData.main.DepVar,
+        formData.main.FixFactor,
+        formData.main.Covar,
+        formData.main.WlsWeight,
+        formData.plots.FixFactorVars,
+        tempVariables,
+    ]);
+
+    const updateFormData = <T extends keyof typeof formData>(
+        section: T,
+        field: keyof (typeof formData)[T],
+        value: unknown
+    ) => {
+        setFormData((prev) => ({
+            ...prev,
+            [section]: {
+                ...prev[section],
+                [field]: value,
+            },
+        }));
+    };
+
+    const executeMultivariate = async (mainData: MultivariateMainType) => {
+        try {
+            const newFormData = {
+                ...formData,
+                main: mainData,
+            };
+
+            await saveFormData("Multivariate", newFormData);
+
+            await analyzeMultivariate({
+                configData: newFormData,
+                dataVariables: dataVariables,
+                variables: variables,
+            });
+        } catch (error) {
+            console.error(error);
+        }
+
+        closeModal();
+        onClose();
+    };
+
+    const resetFormData = async () => {
+        try {
+            await clearFormData("Multivariate");
+            setFormData({ ...MultivariateDefault });
+        } catch (error) {
+            console.error("Failed to clear form data:", error);
+        }
+    };
+
+    const handleClose = () => {
+        closeModal();
+        onClose();
+    };
+
+    return (
+        <Dialog open={isMainOpen} onOpenChange={handleClose}>
+            <DialogTitle></DialogTitle>
+            <DialogContent>
+                <MultivariateDialog
+                    isMainOpen={isMainOpen}
+                    setIsMainOpen={setIsMainOpen}
+                    setIsModelOpen={setIsModelOpen}
+                    setIsContrastOpen={setIsContrastOpen}
+                    setIsPlotsOpen={setIsPlotsOpen}
+                    setIsPostHocOpen={setIsPostHocOpen}
+                    setIsEMMeansOpen={setIsEMMeansOpen}
+                    setIsSaveOpen={setIsSaveOpen}
+                    setIsOptionsOpen={setIsOptionsOpen}
+                    setIsBootstrapOpen={setIsBootstrapOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("main", field, value)
+                    }
+                    data={formData.main}
+                    globalVariables={tempVariables}
+                    onContinue={(mainData) => executeMultivariate(mainData)}
+                    onReset={resetFormData}
+                />
+
+                {/* Model */}
+                <MultivariateModel
+                    isModelOpen={isModelOpen}
+                    setIsModelOpen={setIsModelOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("model", field, value)
+                    }
+                    data={formData.model}
+                />
+
+                {/* Contrast */}
+                <MultivariateContrast
+                    isContrastOpen={isContrastOpen}
+                    setIsContrastOpen={setIsContrastOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("contrast", field, value)
+                    }
+                    data={formData.contrast}
+                />
+
+                {/* Plots */}
+                <MultivariatePlots
+                    isPlotsOpen={isPlotsOpen}
+                    setIsPlotsOpen={setIsPlotsOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("plots", field, value)
+                    }
+                    data={formData.plots}
+                />
+
+                {/* PostHoc */}
+                <MultivariatePostHoc
+                    isPostHocOpen={isPostHocOpen}
+                    setIsPostHocOpen={setIsPostHocOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("posthoc", field, value)
+                    }
+                    data={formData.posthoc}
+                />
+
+                {/* EMMeans */}
+                <MultivariateEMMeans
+                    isEMMeansOpen={isEMMeansOpen}
+                    setIsEMMeansOpen={setIsEMMeansOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("emmeans", field, value)
+                    }
+                    data={formData.emmeans}
+                />
+
+                {/* Save */}
+                <MultivariateSave
+                    isSaveOpen={isSaveOpen}
+                    setIsSaveOpen={setIsSaveOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("save", field, value)
+                    }
+                    data={formData.save}
+                />
+
+                {/* Options */}
+                <MultivariateOptions
+                    isOptionsOpen={isOptionsOpen}
+                    setIsOptionsOpen={setIsOptionsOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("options", field, value)
+                    }
+                    data={formData.options}
+                />
+
+                {/* Bootstrap */}
+                <MultivariateBootstrap
+                    isBootstrapOpen={isBootstrapOpen}
+                    setIsBootstrapOpen={setIsBootstrapOpen}
+                    updateFormData={(field, value) =>
+                        updateFormData("bootstrap", field, value)
+                    }
+                    data={formData.bootstrap}
+                />
+            </DialogContent>
+        </Dialog>
+    );
+};

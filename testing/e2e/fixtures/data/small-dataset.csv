@@ -1,0 +1,101 @@
+RespondentID,Age,Gender,Education,Income,Satisfaction,Department,Experience,Salary,Performance,MaritalStatus,Children,CommuteTime,WorkHours,JobSatisfaction,StressLevel,TrainingHours,Promotion,Tenure,Location
+1,37,Male,Master,33366,5,Marketing,7,2665,Unsatisfactory,Divorced,0,11,53,3,9,12,No,3,Chicago
+2,39,Other,Other,67539,2,Sales,20,6615,Unsatisfactory,Widowed,2,53,38,5,10,11,No,9,Philadelphia
+3,38,Other,Master,96025,5,IT,25,9047,Unsatisfactory,Widowed,0,20,48,3,9,39,No,5,Phoenix
+4,39,Male,PhD,86435,3,Operations,2,7005,Good,Single,1,27,43,2,4,42,Yes,5,Phoenix
+5,24,Female,Other,69775,5,Customer Service,2,4870,Excellent,Widowed,2,27,54,4,5,26,No,9,Los Angeles
+6,55,Other,High School,103385,5,IT,13,7275,Excellent,Divorced,1,36,42,5,8,10,Yes,14,San Antonio
+7,52,Female,High School,85665,1,Finance,12,6834,Good,Married,2,26,51,5,2,29,No,14,Philadelphia
+8,24,Female,Other,67553,4,Finance,3,6216,Excellent,Divorced,0,60,41,5,2,10,Yes,15,San Diego
+9,28,Other,Master,109941,1,Sales,24,7507,Unsatisfactory,Divorced,2,60,39,2,10,33,No,12,New York
+10,53,Male,Master,58103,3,IT,13,4216,Excellent,Divorced,3,21,47,3,5,20,No,11,Houston
+11,25,Male,High School,99413,4,Marketing,22,8139,Needs Improvement,Married,0,43,37,1,5,15,No,1,San Antonio
+12,49,Male,Master,51236,1,HR,20,4264,Good,Widowed,1,26,45,3,8,37,No,12,New York
+13,36,Male,Master,52353,2,Marketing,7,3657,Excellent,Divorced,0,15,46,1,5,43,Yes,12,Chicago
+14,22,Other,Master,33847,2,R&D,15,2785,Needs Improvement,Married,3,35,38,5,2,16,No,10,San Diego
+15,43,Female,PhD,61393,4,Customer Service,8,5535,Good,Divorced,3,22,54,5,8,12,Yes,9,Los Angeles
+16,42,Female,High School,72174,5,Marketing,1,6764,Good,Divorced,0,31,53,2,8,20,No,11,Chicago
+17,36,Male,Bachelor,42693,1,IT,19,3858,Needs Improvement,Divorced,3,53,45,4,3,37,No,2,San Antonio
+18,24,Other,Other,74431,3,Customer Service,13,6780,Unsatisfactory,Divorced,0,51,39,2,2,23,No,2,Chicago
+19,50,Other,High School,81341,4,HR,6,6364,Unsatisfactory,Single,2,25,35,2,8,14,Yes,4,San Diego
+20,32,Male,Other,75167,3,HR,20,7104,Unsatisfactory,Single,1,59,35,5,8,16,No,7,Chicago
+21,56,Female,Other,82569,1,Finance,9,6157,Needs Improvement,Single,2,48,38,1,9,14,No,1,Houston
+22,37,Female,Other,98285,3,Finance,3,8282,Good,Widowed,0,5,41,4,9,30,No,14,Chicago
+23,48,Male,High School,70978,4,Operations,3,5204,Satisfactory,Divorced,1,63,44,1,6,8,No,15,Phoenix
+24,49,Male,PhD,100833,3,Operations,1,8291,Unsatisfactory,Widowed,3,21,47,4,5,23,No,9,Philadelphia
+25,52,Other,Master,70423,2,HR,24,5376,Needs Improvement,Widowed,3,23,36,5,5,22,No,7,New York
+26,42,Male,High School,106340,2,IT,25,8701,Excellent,Married,2,20,40,5,10,43,No,11,Houston
+27,44,Female,PhD,53151,2,Operations,14,3858,Satisfactory,Widowed,2,40,43,5,3,9,No,5,San Diego
+28,52,Other,Bachelor,64764,1,Marketing,15,6088,Unsatisfactory,Divorced,3,35,53,5,7,8,Yes,7,New York
+29,24,Other,Bachelor,79834,3,Customer Service,22,7559,Unsatisfactory,Widowed,2,57,51,3,3,16,No,9,Los Angeles
+30,53,Male,Master,48492,2,HR,15,4662,Satisfactory,Married,3,58,41,5,6,6,Yes,3,Philadelphia
+31,42,Female,High School,105941,2,Customer Service,15,9987,Excellent,Married,1,9,50,2,10,27,No,1,New York
+32,47,Female,High School,71089,1,Sales,16,6185,Excellent,Divorced,2,54,51,5,6,10,Yes,1,Philadelphia
+33,33,Male,Bachelor,51042,1,Marketing,18,5077,Satisfactory,Married,2,14,35,4,5,42,Yes,14,San Antonio
+34,53,Other,Master,51674,2,Operations,23,4553,Satisfactory,Widowed,0,17,52,3,5,30,No,5,New York
+35,25,Other,Other,78522,1,Operations,25,6849,Excellent,Married,2,27,44,3,7,22,Yes,1,New York
+36,56,Other,Master,75120,5,IT,23,5974,Good,Married,2,5,38,3,4,29,Yes,5,San Antonio
+37,52,Female,High School,90124,1,Operations,15,7672,Satisfactory,Single,1,25,49,2,4,33,Yes,7,Los Angeles
+38,33,Other,Other,107218,1,HR,8,8291,Excellent,Married,0,33,40,4,5,43,Yes,1,Philadelphia
+39,45,Male,Other,89667,5,Customer Service,19,6446,Unsatisfactory,Married,3,57,45,2,4,38,Yes,8,Phoenix
+40,39,Other,Master,106593,1,HR,5,9290,Good,Married,0,23,38,5,8,13,No,4,Houston
+41,53,Other,High School,94346,5,IT,21,7889,Satisfactory,Married,0,27,51,4,3,37,No,14,San Diego
+42,27,Female,PhD,41005,1,Customer Service,2,2771,Satisfactory,Widowed,0,51,42,2,2,43,No,3,New York
+43,36,Male,PhD,104069,5,Operations,4,9841,Good,Divorced,2,33,47,2,8,24,No,2,Chicago
+44,39,Male,Master,75597,3,HR,4,6983,Good,Single,2,15,54,4,3,22,No,8,San Antonio
+45,50,Male,High School,89684,5,Operations,18,8132,Excellent,Divorced,1,27,48,4,2,32,Yes,6,Houston
+46,44,Other,Other,45443,5,R&D,16,4521,Good,Widowed,3,17,52,1,4,35,No,8,Phoenix
+47,40,Male,Other,87669,5,Sales,8,8483,Satisfactory,Widowed,0,38,45,4,7,24,No,13,Houston
+48,39,Female,Other,35189,1,Operations,24,2797,Satisfactory,Widowed,2,64,51,5,3,25,No,9,Chicago
+49,50,Female,PhD,90740,5,Finance,5,6211,Unsatisfactory,Married,3,8,42,4,9,39,No,2,Phoenix
+50,33,Male,Other,108660,5,HR,9,8029,Needs Improvement,Married,0,49,47,1,4,24,No,10,San Diego
+51,29,Male,High School,82471,1,R&D,3,7939,Satisfactory,Divorced,2,12,39,1,2,9,Yes,15,New York
+52,49,Female,High School,34428,5,Sales,6,3160,Satisfactory,Married,3,10,54,2,7,34,No,14,San Antonio
+53,34,Female,High School,62060,4,Operations,24,4187,Satisfactory,Widowed,0,15,45,1,9,39,No,4,Chicago
+54,30,Female,High School,96252,2,HR,13,6663,Excellent,Divorced,2,54,45,3,5,29,No,1,San Antonio
+55,51,Female,High School,107336,2,Sales,17,9873,Excellent,Divorced,1,16,54,5,7,22,Yes,3,Los Angeles
+56,40,Male,Master,48834,3,HR,15,3976,Satisfactory,Single,2,8,52,2,9,6,Yes,14,New York
+57,37,Male,Other,64087,1,R&D,9,4832,Good,Single,1,16,36,1,6,18,No,15,San Diego
+58,45,Female,Other,53023,4,R&D,8,4329,Good,Widowed,0,27,49,3,1,15,Yes,14,Chicago
+59,48,Female,Other,79229,2,Finance,9,7290,Needs Improvement,Single,2,54,53,4,10,17,No,1,New York
+60,48,Other,Bachelor,72301,5,R&D,14,5235,Needs Improvement,Single,1,42,44,4,8,11,Yes,6,Los Angeles
+61,42,Male,Other,71754,3,Finance,13,7169,Good,Divorced,1,43,37,1,10,27,No,1,San Antonio
+62,29,Female,Master,91861,4,Customer Service,21,8030,Satisfactory,Widowed,0,61,54,5,10,40,No,9,Los Angeles
+63,44,Male,Bachelor,30650,3,IT,10,2645,Excellent,Married,1,53,53,1,1,24,No,1,San Antonio
+64,52,Female,High School,94726,3,Finance,1,9165,Satisfactory,Widowed,1,25,43,5,3,27,No,6,Los Angeles
+65,35,Other,PhD,89035,5,Marketing,20,7302,Unsatisfactory,Widowed,0,9,47,4,8,10,No,9,New York
+66,42,Male,High School,64803,5,Marketing,9,6453,Good,Divorced,3,22,44,2,6,40,Yes,6,Phoenix
+67,37,Other,PhD,59883,3,Finance,3,4540,Excellent,Married,2,10,49,3,10,5,No,1,Los Angeles
+68,53,Female,Other,73029,5,HR,25,5379,Satisfactory,Single,1,37,35,2,8,28,No,15,San Diego
+69,51,Other,Other,34898,1,R&D,20,3322,Satisfactory,Single,3,9,45,1,9,24,No,15,San Diego
+70,30,Other,High School,78187,4,Operations,3,5639,Unsatisfactory,Widowed,1,14,41,4,8,26,Yes,10,New York
+71,43,Other,Bachelor,71345,5,Finance,11,5836,Satisfactory,Married,2,23,38,4,5,24,No,10,New York
+72,22,Female,PhD,78791,4,HR,18,6775,Satisfactory,Widowed,2,50,54,5,2,26,No,15,San Antonio
+73,33,Male,Other,81795,5,Sales,8,5521,Unsatisfactory,Married,1,37,50,4,1,39,Yes,12,San Antonio
+74,23,Other,PhD,61220,1,IT,20,4128,Needs Improvement,Single,0,49,39,3,5,43,No,2,New York
+75,23,Other,Other,80596,2,Finance,21,5768,Unsatisfactory,Single,2,24,36,4,1,11,No,2,Philadelphia
+76,41,Male,Other,56429,1,Sales,12,5208,Excellent,Widowed,0,37,40,5,1,27,No,6,San Diego
+77,29,Male,Bachelor,100644,5,Operations,5,7653,Excellent,Widowed,1,7,42,3,7,14,No,6,New York
+78,50,Other,Other,38355,1,Finance,25,2779,Unsatisfactory,Divorced,3,37,51,3,10,41,Yes,5,San Diego
+79,38,Male,High School,73028,2,Operations,9,5078,Satisfactory,Married,2,64,47,5,1,15,Yes,13,Phoenix
+80,32,Female,Other,38777,2,Customer Service,9,3434,Needs Improvement,Married,0,8,46,4,10,41,No,8,Phoenix
+81,52,Female,Other,36171,4,Finance,7,2781,Good,Divorced,3,16,53,5,9,14,Yes,13,Chicago
+82,40,Other,Bachelor,33786,3,R&D,16,2712,Good,Divorced,0,20,35,2,10,13,No,10,Houston
+83,51,Other,High School,100316,4,R&D,22,7688,Unsatisfactory,Married,3,10,44,4,1,22,No,15,Phoenix
+84,56,Female,Other,50467,5,R&D,18,3899,Needs Improvement,Single,3,58,38,4,3,35,No,9,San Antonio
+85,22,Male,Other,46337,1,R&D,7,3533,Good,Divorced,3,6,36,2,10,21,No,8,Philadelphia
+86,50,Other,PhD,108047,5,Finance,19,8886,Satisfactory,Married,0,33,44,3,8,34,No,15,Phoenix
+87,39,Female,High School,82911,5,R&D,18,7601,Excellent,Single,1,11,51,3,4,12,Yes,9,Phoenix
+88,27,Male,Master,89999,1,Operations,15,7874,Needs Improvement,Married,0,33,37,5,10,41,No,2,New York
+89,40,Female,Bachelor,39025,5,IT,1,3243,Satisfactory,Single,0,26,54,3,10,28,Yes,2,Chicago
+90,49,Other,High School,89654,3,R&D,9,7113,Excellent,Divorced,3,32,43,5,2,20,No,6,Phoenix
+91,22,Male,Bachelor,90066,5,Customer Service,25,6553,Needs Improvement,Married,0,5,39,1,6,35,No,6,Houston
+92,25,Other,Bachelor,35634,3,IT,2,3178,Excellent,Single,0,59,40,1,5,17,Yes,9,San Antonio
+93,25,Male,Bachelor,70768,3,Sales,20,6938,Excellent,Married,1,16,48,3,9,6,Yes,9,Chicago
+94,24,Male,PhD,98775,5,Sales,10,7980,Unsatisfactory,Single,1,40,44,1,1,37,No,5,Los Angeles
+95,52,Male,Other,54160,1,IT,23,4640,Satisfactory,Single,3,35,38,5,9,24,Yes,1,Philadelphia
+96,52,Female,Master,64864,1,Sales,20,4546,Excellent,Married,2,23,48,2,6,13,No,3,San Diego
+97,47,Male,Bachelor,57542,3,Sales,7,5495,Unsatisfactory,Widowed,3,37,39,3,10,36,No,6,Los Angeles
+98,51,Other,Bachelor,69239,5,R&D,17,5439,Unsatisfactory,Married,2,39,35,2,5,23,Yes,8,Los Angeles
+99,31,Male,High School,84954,3,Operations,23,5911,Needs Improvement,Divorced,2,56,53,1,10,14,No,5,New York
+100,32,Other,PhD,58522,3,Marketing,10,5509,Excellent,Single,2,49,35,5,4,41,No,2,San Antonio

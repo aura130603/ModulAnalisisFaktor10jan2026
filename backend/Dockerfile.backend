@@ -1,0 +1,61 @@
+FROM node:18-alpine AS builder
+
+WORKDIR /app/backend
+
+# Declare build arguments
+ARG NEXT_PUBLIC_FRONTEND_URL
+
+# Set environment variables from build arguments
+ENV NEXT_PUBLIC_FRONTEND_URL=$NEXT_PUBLIC_FRONTEND_URL
+ENV NODE_ENV=production
+
+# Copy backend package.json dan install dependencies
+COPY package.json ./
+RUN NODE_ENV=development npm install
+
+# Copy source code backend
+COPY tsconfig.json ./
+COPY server ./server
+
+# Tambahkan .env file
+RUN touch .env
+RUN echo "NEXT_PUBLIC_FRONTEND_URL=$NEXT_PUBLIC_FRONTEND_URL" >> .env
+
+# Build aplikasi
+RUN npm run build
+
+# --- Production stage ---
+FROM node:18-alpine
+
+# Set the final working directory
+WORKDIR /app/backend
+
+# Pass env variables to runtime
+ARG NEXT_PUBLIC_FRONTEND_URL
+ENV NEXT_PUBLIC_FRONTEND_URL=$NEXT_PUBLIC_FRONTEND_URL
+ENV NODE_ENV=production
+
+# Copy package.json untuk production
+COPY package.json ./
+
+# Install ONLY production dependencies
+RUN npm install --omit=dev
+
+# Copy build artifacts dari builder stage
+COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/backend/.env ./.env
+
+# Create temp directory
+RUN mkdir -p ./temp
+RUN chown -R node:node ./temp
+
+# Healthcheck for container
+HEALTHCHECK CMD wget -qO- http://localhost:5000/ || exit 1
+
+# Run as non-root user for security
+USER node
+
+EXPOSE 5000
+
+# Run server
+CMD ["npm", "run", "start"]

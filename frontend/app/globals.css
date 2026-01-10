@@ -1,0 +1,352 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 222 77% 38%;
+    --primary-foreground: 220 14% 96%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 220 13% 13%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 100% 97%;
+    --accent-foreground: 221 71% 40%;
+    --destructive: 0 72% 41%;
+    --destructive-foreground: 220 14% 96%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 224 84% 83%;
+    --radius: 1rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 216 28% 7%;
+    --foreground: 210 17% 82%;
+    --card: 216 28% 10%;
+    --card-foreground: 210 17% 82%;
+    --popover: 216 28% 10%;
+    --popover-foreground: 210 17% 82%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 220 14% 96%;
+    --secondary: 215 20% 16%;
+    --secondary-foreground: 210 17% 82%;
+    --muted: 215 20% 16%;
+    --muted-foreground: 215 10% 53%;
+    --accent: 210 31% 20%;
+    --accent-foreground: 211 100% 68%;
+    --destructive: 0 93% 67%;
+    --destructive-foreground: 216 28% 7%;
+    --border: 215 14% 22%;
+    --input: 215 14% 22%;
+    --ring: 211 100% 68%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  section[id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+/* Utility to hide horizontal scrollbar while keeping functionality */
+.hide-scrollbar-x {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  overflow-x: auto; /* Ensure horizontal scrolling is enabled */
+}
+
+.hide-scrollbar-x::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  height: 0; /* Ensure no space is taken */
+}
+
+/* resize-content class untuk memastikan konten sidebar menyesuaikan ukuran */
+.resize-content {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Pastikan semua konten dalam resize-content mengikuti batasan ukuran */
+.resize-content > * {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Perbaikan khusus untuk Handsontable dalam sidebar */
+.resize-content .handsontable {
+  width: 100% !important;
+}
+
+.resize-content .handsontable .wtHolder,
+.resize-content .handsontable .wtHider {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+/* Layout dashboard */
+.dashboard-layout {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Panel styling */
+[data-radix-panel] {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Perbaikan untuk tabel dalam panel */
+.hot-container-excel {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.hot-container-excel .ht_master,
+.hot-container-excel .handsontable {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Fix untuk container dan wrapper */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Add animation for the help content */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Custom data table styling */
+.data-table-modern table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: auto;
+  margin: 0 auto;
+}
+
+/* Remove border-collapse from other tables */
+table:not(.data-table-modern table) {
+  border-collapse: collapse;
+}
+
+/* Modern flat table styles */
+.data-table-modern {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  padding: 1.5rem;
+}
+
+/* Container with subtle border */
+.data-table-modern > div {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  overflow: hidden;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+/* Flat table header styling */
+.data-table-modern thead th {
+  background-color: var(--muted);
+  color: var(--foreground);
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.data-table-modern thead tr:first-child th {
+  background-color: var(--primary-foreground);
+  border-bottom: 2px solid var(--border);
+  font-weight: 700;
+}
+
+/* Table cell padding and alignment */
+.data-table-modern td {
+  padding: 10px 16px;
+}
+
+/* Row styling */
+.data-table-modern tbody tr:hover {
+  background-color: var(--accent);
+}
+
+.data-table-modern tbody tr:not(:last-child) {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Fixed table header */
+.data-table-modern thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Responsive table */
+@media (max-width: 640px) {
+  .data-table-modern {
+    padding: 0.75rem;
+  }
+
+  .data-table-modern table {
+    font-size: 0.75rem;
+  }
+
+  .data-table-modern th,
+  .data-table-modern td {
+    padding: 8px 12px !important;
+  }
+}
+
+/* Customize list styles within tiptap editor */
+.tiptap ul {
+  list-style-type: disc;
+  margin-left: 1.25rem; /* ~20px */
+  padding-left: 0.25rem;
+}
+
+.tiptap ol {
+  list-style-type: decimal;
+  margin-left: 1.25rem;
+  padding-left: 0.25rem;
+}
+
+.tiptap li {
+  margin-bottom: 0.25rem;
+}
+
+/* Refined vertical rhythm inside Tiptap editor */
+.tiptap p,
+.tiptap ul,
+.tiptap ol,
+.tiptap blockquote {
+  margin-bottom: 0.5rem; /* consistent paragraph spacing */
+}
+
+.tiptap li {
+  margin-bottom: 0.125rem; /* tighter list items */
+}
+
+/* Remove bottom margin from the last element */
+.tiptap > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive grid for chart selection using container query */
+@container (max-width: 700px) {
+  .chart-selection-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+/* @container (min-width: 351px) and (max-width: 600px) {
+  .chart-selection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 601px) {
+  .chart-selection-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+} */
+
+/* Fallback for browsers without container query support */
+@media (max-width: 700px) {
+  .chart-selection-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+}
+/* @media (min-width: 401px) and (max-width: 700px) {
+  .chart-selection-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 701px) {
+  .chart-selection-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+} */
+
+.chart-selection-container {
+  container-type: inline-size;
+}
+
+.custom-dialog-content {
+  overscroll-behavior: contain;
+  pointer-events: auto !important;
+}

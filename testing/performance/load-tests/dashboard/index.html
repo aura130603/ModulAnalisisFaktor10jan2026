@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statify K6 Load Testing Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .metric-card h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .stat-item {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(52, 152, 219, 0.3);
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .controls h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-group label {
+            font-weight: 500;
+            color: #34495e;
+        }
+        
+        .control-group input, .control-group select {
+            padding: 0.5rem;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-running {
+            background: #27ae60;
+        }
+        
+        .status-stopped {
+            background: #e74c3c;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .summary-card h4 {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .summary-card .value {
+            color: #2c3e50;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-card .unit {
+            color: #95a5a6;
+            font-size: 0.8rem;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Statify K6 Load Testing Dashboard</h1>
+        <p>Real-time monitoring untuk performa aplikasi SPSS Statify</p>
+    </div>
+    
+    <div class="container">
+        <div class="controls">
+            <h3>📊 Kontrol Dashboard</h3>
+            <div class="control-group">
+                <label for="dataSource">Sumber Data:</label>
+                <select id="dataSource">
+                    <option value="realtime">Real-time (WebSocket)</option>
+                    <option value="file">File JSON</option>
+                    <option value="demo">Demo Data</option>
+                </select>
+                
+                <label for="refreshRate">Refresh Rate:</label>
+                <input type="number" id="refreshRate" value="2" min="1" max="10">
+                <span>detik</span>
+                
+                <button class="btn" onclick="toggleMonitoring()">▶️ Mulai Monitoring</button>
+                <button class="btn" onclick="exportData()">💾 Export Data</button>
+                
+                <span id="status">
+                    <span class="status-indicator status-stopped"></span>
+                    Status: Stopped
+                </span>
+            </div>
+        </div>
+        
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h4>Total Requests</h4>
+                <div class="value" id="totalRequests">0</div>
+                <div class="unit">requests</div>
+            </div>
+            <div class="summary-card">
+                <h4>Success Rate</h4>
+                <div class="value" id="successRate">0%</div>
+                <div class="unit">success</div>
+            </div>
+            <div class="summary-card">
+                <h4>Avg Response Time</h4>
+                <div class="value" id="avgResponseTime">0</div>
+                <div class="unit">ms</div>
+            </div>
+            <div class="summary-card">
+                <h4>Current VUs</h4>
+                <div class="value" id="currentVUs">0</div>
+                <div class="unit">users</div>
+            </div>
+            <div class="summary-card">
+                <h4>Errors</h4>
+                <div class="value" id="totalErrors">0</div>
+                <div class="unit">errors</div>
+            </div>
+            <div class="summary-card">
+                <h4>Throughput</h4>
+                <div class="value" id="throughput">0</div>
+                <div class="unit">req/s</div>
+            </div>
+        </div>
+        
+        <div class="metrics-grid">
+            <!-- Response Time Metrics -->
+            <div class="metric-card">
+                <h3>⏱️ Response Time Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">P95: <span id="p95ResponseTime">0ms</span></span>
+                    <span class="stat-item">P99: <span id="p99ResponseTime">0ms</span></span>
+                    <span class="stat-item">Avg: <span id="avgResponseTimeDetail">0ms</span></span>
+                </div>
+            </div>
+            
+            <!-- Throughput -->
+            <div class="metric-card">
+                <h3>🚀 Throughput & Load</h3>
+                <div class="chart-container">
+                    <canvas id="throughputChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">Peak: <span id="peakThroughput">0 req/s</span></span>
+                    <span class="stat-item">Current: <span id="currentThroughput">0 req/s</span></span>
+                </div>
+            </div>
+            
+            <!-- Error Rates -->
+            <div class="metric-card">
+                <h3>❌ Error Analysis</h3>
+                <div class="chart-container">
+                    <canvas id="errorChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">Client: <span id="clientErrors">0</span></span>
+                    <span class="stat-item">Server: <span id="serverErrors">0</span></span>
+                    <span class="stat-item">Timeout: <span id="timeoutErrors">0</span></span>
+                </div>
+            </div>
+            
+            <!-- Network Metrics -->
+            <div class="metric-card">
+                <h3>🌐 Network Performance</h3>
+                <div class="chart-container">
+                    <canvas id="networkChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">DNS: <span id="dnsTime">0ms</span></span>
+                    <span class="stat-item">Connect: <span id="connectTime">0ms</span></span>
+                    <span class="stat-item">TLS: <span id="tlsTime">0ms</span></span>
+                </div>
+            </div>
+            
+            <!-- SAV Operations -->
+            <div class="metric-card">
+                <h3>📁 SAV Operations</h3>
+                <div class="chart-container">
+                    <canvas id="savChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">Read Avg: <span id="savReadAvg">0ms</span></span>
+                    <span class="stat-item">Write Avg: <span id="savWriteAvg">0ms</span></span>
+                </div>
+            </div>
+            
+            <!-- Resource Usage -->
+            <div class="metric-card">
+                <h3>💻 Resource Usage</h3>
+                <div class="chart-container">
+                    <canvas id="resourceChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">Memory: <span id="memoryUsage">0MB</span></span>
+                    <span class="stat-item">CPU: <span id="cpuUsage">0%</span></span>
+                </div>
+            </div>
+            
+            <!-- Data Transfer -->
+            <div class="metric-card">
+                <h3>📊 Data Transfer</h3>
+                <div class="chart-container">
+                    <canvas id="dataTransferChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">Upload: <span id="uploadSpeed">0 KB/s</span></span>
+                    <span class="stat-item">Download: <span id="downloadSpeed">0 KB/s</span></span>
+                </div>
+            </div>
+            
+            <!-- Processing Time -->
+            <div class="metric-card">
+                <h3>⚙️ Processing Breakdown</h3>
+                <div class="chart-container">
+                    <canvas id="processingChart"></canvas>
+                </div>
+                <div class="stats-row">
+                    <span class="stat-item">Queue: <span id="queueTime">0ms</span></span>
+                    <span class="stat-item">Process: <span id="processTime">0ms</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="dashboard.js"></script>
+</body>
+</html>

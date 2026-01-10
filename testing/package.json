@@ -1,0 +1,49 @@
+{
+  "name": "statify-testing",
+  "version": "1.0.0",
+  "description": "Unified testing framework for Statify",
+  "scripts": {
+    "test": "npm run test:e2e && npm run test:performance:smoke",
+    
+    "test:e2e": "playwright test --config=testing/e2e/playwright.config.ts",
+    "test:e2e:headed": "playwright test --config=testing/e2e/playwright.config.ts --headed",
+    "test:e2e:debug": "playwright test --config=testing/e2e/playwright.config.ts --debug",
+    "test:e2e:report": "playwright show-report testing/reports/e2e",
+    
+    "test:performance": "k6 run testing/performance/scenarios/load-test.js",
+    "test:performance:smoke": "k6 run testing/performance/scenarios/smoke-test.js",
+    "test:performance:stress": "k6 run testing/performance/scenarios/stress-test.js",
+    "test:performance:specific-pages": "k6 run testing/performance/load-tests/frontend/specific-pages-load-test.js",
+    "test:performance:dashboard-data": "k6 run --env SCENARIO=dashboard_data_load testing/performance/load-tests/frontend/specific-pages-load-test.js",
+    "test:performance:help-page": "k6 run --env SCENARIO=help_page_load testing/performance/load-tests/frontend/specific-pages-load-test.js",
+    "test:performance:landing-page": "k6 run --env SCENARIO=landing_page_load testing/performance/load-tests/frontend/specific-pages-load-test.js",
+    
+    "test:performance:sav-small-read": "k6 run --env OPERATION_TYPE=read --env FILE_SIZE=small testing/performance/load-tests/backend/sav-small-files-test.js",
+    "test:performance:sav-small-download": "k6 run --env OPERATION_TYPE=download --env FILE_SIZE=small testing/performance/load-tests/backend/sav-small-files-test.js",
+    "test:performance:sav-large-read": "k6 run --env OPERATION_TYPE=read --env FILE_SIZE=large testing/performance/load-tests/backend/sav-large-files-only-test.js",
+    "test:performance:sav-large-download": "k6 run --env OPERATION_TYPE=download --env FILE_SIZE=large testing/performance/load-tests/backend/sav-large-files-only-test.js",
+    "test:performance": "node testing/performance/k6-runner.js",
+    "test:performance:backend": "k6 run testing/performance/scenarios/backend-post-test.js --out json=testing/reports/performance/backend-$(date +%Y%m%d-%H%M%S).json --summary-export=testing/reports/performance/backend-summary-$(date +%Y%m%d-%H%M%S).json",
+    "test:performance:frontend": "k6 run testing/performance/scenarios/frontend-get-test.js --out json=testing/reports/performance/frontend-$(date +%Y%m%d-%H%M%S).json --summary-export=testing/reports/performance/frontend-summary-$(date +%Y%m%d-%H%M%S).json",
+    "test:performance:backend-post": "k6 run testing/performance/scenarios/backend-post-test.js --out json=testing/reports/performance/backend-post-$(date +%Y%m%d-%H%M%S).json",
+    "test:performance:frontend-get": "k6 run testing/performance/scenarios/frontend-get-test.js --out json=testing/reports/performance/frontend-get-$(date +%Y%m%d-%H%M%S).json",
+    "test:performance:report": "node testing/performance/k6-runner.js",
+    "test:performance:view": "k6 inspect testing/performance/scenarios/load-test.js",
+    
+    "test:unit": "jest --config=testing/unit/jest.config.js",
+    "test:integration": "jest --config=testing/integration/jest.config.js",
+    
+    "test:all": "npm run test:e2e && npm run test:performance && npm run test:unit",
+    
+    "test:clean": "rimraf testing/reports/**/*",
+    "test:setup": "npm install && npx playwright install",
+    
+    "migrate": "powershell -ExecutionPolicy Bypass -File testing/scripts/migrate-structure.ps1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "k6": "^0.0.0",
+    "jest": "^29.7.0",
+    "rimraf": "^5.0.0"
+  }
+}

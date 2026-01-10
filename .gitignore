@@ -1,0 +1,101 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# =============================================================================
+# GENERAL
+# =============================================================================
+# OS-generated files
+.DS_Store
+*.pem
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment variables
+# .env*.local
+.env.development
+.env.production
+.env
+
+# =============================================================================
+# DEPENDENCIES & BUILD ARTIFACTS
+# =============================================================================
+# Dependency directories
+**/node_modules
+/.pnp
+.pnp.js
+
+# Build output
+**/build
+**/dist
+/out/
+
+# Test results
+/coverage
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# =============================================================================
+# FRAMEWORK & TOOLING
+# =============================================================================
+# Next.js & SWC
+/.next/
+/.swc/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Wasm
+**/wasm/target
+**/wasm/Cargo.lock
+# typescript
+*.tsbuildinfo
+# next-env.d.ts (Keep if not moved to frontend)
+# wasm
+**/target/*
+**/Cargo.lock
+
+# IDE & Editor
+.idea
+.vscode
+
+# =============================================================================
+# PROJECT-SPECIFIC
+# =============================================================================
+# Documentation folder
+/_skripsi penulisan
+
+# Test directories that might be temporary
+/_test/
+/wasm-test/
+/frontend/.next
+/frontend/docs
+
+# dist
+/dist
+
+# tests
+backend/dist
+/_test/
+
+# node_modules
+_tes/
+/_skripsi penulisan
+/frontend/coverage
+frontend/.trae/rules/project_rules.md
+/testing/reports
+/testing/test-results
+/testing/test-results
+/testing/reports/e2e
+/testing/test-results
+/testing/reports/e2e
+/frontend/.next-dev
+/backend/coverage

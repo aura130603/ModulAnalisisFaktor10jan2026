@@ -1,0 +1,198 @@
+{
+  "testConfig": {
+    "name": "Statify Specific Pages Load Test",
+    "version": "1.0.0",
+    "description": "Load test untuk halaman dashboard/data, help, dan landing",
+    "author": "Principal Software Engineer - Statify Team"
+  },
+  
+  "environments": {
+    "development": {
+      "baseUrl": "https://statify-dev.student.stis.ac.id",
+      "timeout": "30s",
+      "maxVUs": 30,
+      "testDuration": "3m"
+    },
+    "staging": {
+      "baseUrl": "https://statify-staging.student.stis.ac.id",
+      "timeout": "45s",
+      "maxVUs": 50,
+      "testDuration": "5m"
+    },
+    "production": {
+      "baseUrl": "https://statify.student.stis.ac.id",
+      "timeout": "60s",
+      "maxVUs": 100,
+      "testDuration": "10m"
+    }
+  },
+  
+  "scenarios": {
+    "dashboard_data_load": {
+      "description": "Test dashboard/data page performance",
+      "path": "/dashboard/data",
+      "expectedContent": ["data", "table", "dashboard"],
+      "userBehavior": {
+        "thinkTimeMin": 2,
+        "thinkTimeMax": 5,
+        "interactionTime": 3
+      },
+      "performance": {
+        "maxLoadTime": 3000,
+        "targetLoadTime": 1500,
+        "maxResponseSize": 200000
+      }
+    },
+    
+    "help_page_load": {
+      "description": "Test help page performance",
+      "path": "/help",
+      "expectedContent": ["help", "documentation", "guide"],
+      "userBehavior": {
+        "thinkTimeMin": 3,
+        "thinkTimeMax": 7,
+        "interactionTime": 5
+      },
+      "performance": {
+        "maxLoadTime": 2000,
+        "targetLoadTime": 1000,
+        "maxResponseSize": 150000
+      }
+    },
+    
+    "landing_page_load": {
+      "description": "Test landing page performance",
+      "path": "/landing",
+      "expectedContent": ["Statify", "landing", "welcome"],
+      "userBehavior": {
+        "thinkTimeMin": 1,
+        "thinkTimeMax": 3,
+        "interactionTime": 2
+      },
+      "performance": {
+        "maxLoadTime": 2000,
+        "targetLoadTime": 1000,
+        "maxResponseSize": 180000
+      }
+    },
+    
+    "mixed_navigation": {
+      "description": "Test realistic user navigation flow",
+      "flow": [
+        {
+          "step": 1,
+          "path": "/landing",
+          "thinkTime": [1, 2]
+        },
+        {
+          "step": 2,
+          "path": "/help",
+          "thinkTime": [2, 3]
+        },
+        {
+          "step": 3,
+          "path": "/dashboard/data",
+          "thinkTime": [1, 2]
+        }
+      ],
+      "performance": {
+        "maxJourneyTime": 6000,
+        "targetJourneyTime": 4000,
+        "maxNavigationTime": 1000
+      }
+    }
+  },
+  
+  "loadProfiles": {
+    "light": {
+      "description": "Light load for development testing",
+      "dashboard_data": { "startVUs": 2, "targetVUs": 5, "duration": "1m" },
+      "help_page": { "startVUs": 1, "targetVUs": 3, "duration": "1m" },
+      "landing_page": { "startVUs": 3, "targetVUs": 8, "duration": "1m" },
+      "mixed_navigation": { "startVUs": 2, "targetVUs": 5, "duration": "1m" }
+    },
+    
+    "medium": {
+      "description": "Medium load for staging testing",
+      "dashboard_data": { "startVUs": 5, "targetVUs": 20, "duration": "3m" },
+      "help_page": { "startVUs": 3, "targetVUs": 15, "duration": "3m" },
+      "landing_page": { "startVUs": 8, "targetVUs": 25, "duration": "3m" },
+      "mixed_navigation": { "startVUs": 5, "targetVUs": 15, "duration": "4m" }
+    },
+    
+    "heavy": {
+      "description": "Heavy load for production simulation",
+      "dashboard_data": { "startVUs": 10, "targetVUs": 50, "duration": "5m" },
+      "help_page": { "startVUs": 8, "targetVUs": 30, "duration": "5m" },
+      "landing_page": { "startVUs": 15, "targetVUs": 60, "duration": "5m" },
+      "mixed_navigation": { "startVUs": 10, "targetVUs": 40, "duration": "6m" }
+    }
+  },
+  
+  "thresholds": {
+    "http_req_duration": {
+      "p95": 1500,
+      "p99": 3000,
+      "avg": 800
+    },
+    "http_req_failed": {
+      "rate": 0.03
+    },
+    "page_load_time": {
+      "p95": 2500,
+      "avg": 1200
+    },
+    "error_rate": {
+      "rate": 0.03
+    },
+    "success_rate": {
+      "rate": 0.97
+    },
+    "connection_time": {
+      "p95": 250
+    },
+    "ttfb": {
+      "p95": 500
+    },
+    "response_size": {
+      "avg": 150000
+    },
+    "user_journey_time": {
+      "p95": 6000
+    }
+  },
+  
+  "monitoring": {
+    "metrics": [
+      "http_req_duration",
+      "http_req_failed",
+      "specific_pages_load_time",
+      "specific_pages_error_rate",
+      "specific_pages_success_rate",
+      "specific_pages_throughput",
+      "specific_pages_user_journey_time"
+    ],
+    "alerts": {
+      "error_rate_threshold": 0.05,
+      "response_time_threshold": 3000,
+      "success_rate_threshold": 0.95
+    }
+  },
+  
+  "reporting": {
+    "formats": ["json", "csv", "html"],
+    "includeMetrics": [
+      "summary",
+      "trends",
+      "counters",
+      "rates",
+      "gauges"
+    ],
+    "charts": [
+      "response_time_distribution",
+      "error_rate_over_time",
+      "throughput_over_time",
+      "user_journey_analysis"
+    ]
+  }
+}

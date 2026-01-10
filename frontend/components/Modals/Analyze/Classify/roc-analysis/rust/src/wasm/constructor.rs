@@ -1,0 +1,188 @@
+use wasm_bindgen::prelude::*;
+
+use crate::{
+    models::{
+        config::RocConfig,
+        data::{ AnalysisData, DataRecord, VariableDefinition },
+        result::ROCAnalysisResult,
+    },
+    utils::log::FunctionLogger,
+};
+use crate::utils::{ converter::string_to_js_error, error::ErrorCollector };
+use crate::wasm::function;
+
+#[wasm_bindgen]
+pub struct RocAnalysis {
+    config: RocConfig,
+    data: AnalysisData,
+    result: Option<ROCAnalysisResult>,
+    error_collector: ErrorCollector,
+    executed_functions: Vec<String>,
+    logger: FunctionLogger,
+}
+
+#[wasm_bindgen]
+impl RocAnalysis {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        test_data: JsValue,
+        state_data: JsValue,
+        group_data: JsValue,
+        test_data_defs: JsValue,
+        state_data_defs: JsValue,
+        group_data_defs: JsValue,
+        config_data: JsValue
+    ) -> Result<RocAnalysis, JsValue> {
+        // Initialize error collector
+        let mut error_collector = ErrorCollector::default();
+
+        let logger = FunctionLogger::default();
+
+        // Parse input data using serde_wasm_bindgen
+        let test_data: Vec<Vec<DataRecord>> = match serde_wasm_bindgen::from_value(test_data) {
+            Ok(data) => data,
+            Err(e) => {
+                let msg = format!("Failed to parse test data: {}", e);
+                error_collector.add_error("constructor.test_data", &msg);
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        let state_data: Vec<Vec<DataRecord>> = match serde_wasm_bindgen::from_value(state_data) {
+            Ok(data) => data,
+            Err(e) => {
+                let msg = format!("Failed to parse state data: {}", e);
+                error_collector.add_error("constructor.state_data", &msg);
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        let group_data: Vec<Vec<DataRecord>> = match serde_wasm_bindgen::from_value(group_data) {
+            Ok(data) => data,
+            Err(e) => {
+                let msg = format!("Failed to parse group data: {}", e);
+                error_collector.add_error("constructor.group_data", &msg);
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        let test_data_defs: Vec<Vec<VariableDefinition>> = match
+            serde_wasm_bindgen::from_value(test_data_defs)
+        {
+            Ok(data) => data,
+            Err(e) => {
+                let msg = format!("Failed to parse test data definitions: {}", e);
+                error_collector.add_error("constructor.test_data_defs", &msg);
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        let state_data_defs: Vec<Vec<VariableDefinition>> = match
+            serde_wasm_bindgen::from_value(state_data_defs)
+        {
+            Ok(data) => data,
+            Err(e) => {
+                let msg = format!("Failed to parse state data definitions: {}", e);
+                error_collector.add_error("constructor.state_data_defs", &msg);
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        let group_data_defs: Vec<Vec<VariableDefinition>> = match
+            serde_wasm_bindgen::from_value(group_data_defs)
+        {
+            Ok(data) => data,
+            Err(e) => {
+                let msg = format!("Failed to parse group data definitions: {}", e);
+                error_collector.add_error("constructor.group_data_defs", &msg);
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        let config: RocConfig = match serde_wasm_bindgen::from_value(config_data.clone()) {
+            Ok(data) => data,
+            Err(e) => {
+                let msg =
+                    format!("Failed to parse configuration: {}. Ensure field names match the expected format.", e);
+                error_collector.add_error("constructor.config", &msg);
+
+                // Try to get a more detailed error by inspecting the config data
+                if let Ok(config_json) = js_sys::JSON::stringify(&config_data) {
+                    let config_str = config_json.as_string().unwrap_or_default();
+                    error_collector.add_error(
+                        "constructor.config.raw",
+                        &format!("Raw config: {}", config_str)
+                    );
+                }
+
+                return Err(string_to_js_error(msg));
+            }
+        };
+
+        // Validate important configuration
+        if config.main.state_target_variable.is_none() {
+            let msg = "State target variable must be selected for ROC Analysis".to_string();
+            error_collector.add_error("config.validation.state_target_variable", &msg);
+            return Err(string_to_js_error(msg));
+        }
+
+        if config.main.test_target_variable.is_none() {
+            let msg = "Test target variable must be selected for ROC Analysis".to_string();
+            error_collector.add_error("config.validation.test_target_variable", &msg);
+            return Err(string_to_js_error(msg));
+        }
+
+        // Store data
+        let data = AnalysisData {
+            test_data,
+            state_data,
+            group_data,
+            test_data_defs,
+            state_data_defs,
+            group_data_defs,
+        };
+
+        // Create instance
+        let mut analysis = RocAnalysis {
+            config,
+            data,
+            result: None,
+            error_collector,
+            executed_functions: Vec::new(),
+            logger,
+        };
+
+        // Run the analysis using the function from function.rs
+        match
+            function::run_analysis(
+                &analysis.data,
+                &analysis.config,
+                &mut analysis.error_collector,
+                &mut analysis.logger
+            )
+        {
+            Ok(result) => {
+                analysis.result = result;
+                Ok(analysis)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    // Use functions from function.rs
+    pub fn get_results(&self) -> Result<JsValue, JsValue> {
+        function::get_results(&self.result)
+    }
+
+    pub fn get_formatted_results(&self) -> Result<JsValue, JsValue> {
+        function::get_formatted_results(&self.result)
+    }
+
+    pub fn get_all_errors(&self) -> JsValue {
+        function::get_all_errors(&self.error_collector)
+    }
+
+    pub fn get_all_log(&self) -> Result<JsValue, JsValue> {
+        function::get_all_log(&self.logger)
+    }
+}

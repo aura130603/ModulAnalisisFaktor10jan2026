@@ -1,0 +1,1 @@
+export { transformVariablesToTableData } from './utils';

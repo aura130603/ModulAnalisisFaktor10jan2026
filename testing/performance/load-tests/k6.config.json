@@ -1,0 +1,35 @@
+{
+  "description": "k6 load testing configuration for Statify SPSS application",
+  "testScripts": {
+    "basic": "./basic-load-test.js",
+    "operations": "./spss-operations-test.js"
+  },
+  "environments": {
+    "development": {
+      "baseUrl": "https://statify-dev.student.stis.ac.id",
+      "thresholds": {
+        "http_req_duration": ["p(95)<1000"]
+      }
+    },
+    "staging": {
+      "baseUrl": "https://statify-staging.student.stis.ac.id",
+      "thresholds": {
+        "http_req_duration": ["p(95)<500"]
+      }
+    },
+    "production": {
+      "baseUrl": "https://statify.student.stis.ac.id",
+      "thresholds": {
+        "http_req_duration": ["p(95)<300"]
+      }
+    }
+  },
+  "defaultOptions": {
+    "vus": 10,
+    "duration": "30s",
+    "thresholds": {
+      "http_req_duration": ["p(95)<1000"],
+      "http_req_failed": ["rate<0.1"]
+    }
+  }
+}

@@ -1,0 +1,64 @@
+/* components/VariableTable.css atau file CSS global */
+.handsontable th.grayed-header {
+    color: hsl(var(--muted-foreground));
+    background-color: hsl(var(--muted));
+    font-weight: normal;
+}
+
+/* Removed empty .handsontable th ruleset */
+
+/* Add these styles for text truncation in table cells */
+.handsontable td {
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Show ellipsis (...) for overflow */
+    word-break: keep-all; /* Prevent breaking words at arbitrary points */
+    word-wrap: normal; /* Disable word wrapping */
+    hyphens: none; /* Disable automatic hyphenation */
+    line-height: 1.2; /* Consistent line height */
+    max-width: 100%; /* Ensure proper width calculation */
+}
+
+/* Apply same fixes to column headers */
+.handsontable th {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: keep-all;
+    word-wrap: normal;
+    hyphens: none;
+    line-height: 1.2;
+    max-width: 100%;
+}
+
+/* Optional: Apply specifically to certain columns if needed */
+/*
+.handsontable td.htDimmed {
+    color: #777;
+}
+
+.handsontable .col-values,
+.handsontable .col-missing {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+*/
+
+/* Highlight unknown measure cells with red background and text */
+.handsontable td.htUnknown {
+    background-color: #ffdddd; /* light red bg */
+    color: #cc0000;           /* dark red text */
+}
+
+/* Global rules to prevent word breaking in all Handsontable elements */
+.handsontable td,
+.handsontable th,
+.handsontable input,
+.handsontable .htAutocompleteArrow,
+.handsontable .htDropdownMenu {
+    word-break: keep-all !important;
+    word-wrap: normal !important;
+    hyphens: none !important;
+    overflow-wrap: normal !important;
+}

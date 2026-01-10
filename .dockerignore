@@ -1,0 +1,32 @@
+# Node & build artifacts
+node_modules
+frontend/node_modules
+backend/node_modules
+dist
+backend/dist
+.next
+frontend/.next
+
+# Editor / OS
+.idea
+.vscode
+*.swp
+*.DS_Store
+
+# Logs
+*.log
+
+# Env
+.env*
+
+# Tests
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+
+# contoh tambahan
+**/__tests__/
+**/*.test.*     # unit-test
+**/*.md         # dokumentasi
+# frontend/public/exampleData   # file .sav demo ±35 MB
+.git
