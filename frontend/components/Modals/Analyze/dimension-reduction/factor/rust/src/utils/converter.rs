@@ -1,9 +1,3 @@
-
-
-
-
-
-
 // perbaikan bisa (9/1/2026)
 
 
@@ -24,6 +18,7 @@ use crate::models::result::{
     TotalVarianceExplained,
     TotalVarianceBlock,        // TAMBAHKAN UNTUK TOTAL VARIANE EXPLAINED (COVARIANCE)
     TotalVarianceComponent,    // TAMBAHKAN UNTUK TOTAL VARIANE EXPLAINED (COVARIANCE)
+    LoadingPlot,
 };
 
 pub fn string_to_js_error(error: String) -> JsValue {
@@ -63,6 +58,7 @@ struct FormatResult {
     component_correlation_matrix: Option<ComponentCorrelationMatrix>,
     component_score_coefficient_matrix: Option<FormattedComponentScoreCoefficient>,
     component_score_covariance_matrix: Option<ComponentScoreCovarianceMatrix>,
+    loading_plot: Option<LoadingPlot>,
 }
 
 #[derive(Serialize)]
@@ -714,6 +710,7 @@ impl FormatResult {
             component_correlation_matrix: result.component_correlation_matrix.clone(),
             component_score_coefficient_matrix,
             component_score_covariance_matrix: result.component_score_covariance_matrix.clone(),
+            loading_plot: result.loading_plot.clone(),
         }
     }
 }

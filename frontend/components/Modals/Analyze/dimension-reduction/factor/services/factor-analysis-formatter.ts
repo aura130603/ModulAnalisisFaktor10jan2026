@@ -1,14 +1,14 @@
+// perbaikan (10/1/2026)
 
-
-// perbaikan bisa (9/1/2026)
-
+// PERBAIKAN 4/4/2026
 
 import {formatDisplayNumber} from "@/hooks/useFormatter";
 import {ResultJson, Table} from "@/types/Table";
 
         export function transformFactorAnalysisResult(data: any): ResultJson & {
-            screePlotChart?: any } {
-                const resultJson: ResultJson & { screePlotChart?: any } = {
+            screePlotChart?: any,
+            loadingPlotChart?: any } {
+                const resultJson: ResultJson & { screePlotChart?: any, loadingPlotChart?: any} = {
                 tables: [],
     };
 
@@ -413,90 +413,107 @@ import {ResultJson, Table} from "@/types/Table";
         resultJson.tables.push(table);
     }
 
-
-// 7. Total Variance Explained (FLATTENED - UI SAFE)
-if (data.total_variance_explained) {
-    const matrixType =
-        data.total_variance_explained.extraction_matrix_type ?? "correlation";
-    const isCovariance = matrixType === "covariance";
-
-    const table: Table = {
-        key: "total_variance_explained",
-        title: "Total Variance Explained",
-        columnHeaders: [
-            {
-                header: isCovariance ? "Block" : "Component",
-                key: "component",
-            },
-
-            { header: "Initial Total", key: "initial_total" },
-            { header: "Initial % of Variance", key: "initial_percent" },
-            { header: "Initial Cumulative %", key: "initial_cumulative" },
-
-            { header: "Extraction Total", key: "extraction_total" },
-            { header: "Extraction % of Variance", key: "extraction_percent" },
-            { header: "Extraction Cumulative %", key: "extraction_cumulative" },
-
-            { header: "Rotation Total", key: "rotation_total" },
-            { header: "Rotation % of Variance", key: "rotation_percent" },
-            { header: "Rotation Cumulative %", key: "rotation_cumulative" },
-        ],
-        rows: [],
-    };
-
-    const initial = data.total_variance_explained.initial_eigenvalues || [];
-    const extraction = data.total_variance_explained.extraction_sums || [];
-    const rotation = data.total_variance_explained.rotation_sums || [];
-
-    for (let i = 0; i < initial.length; i++) {
-        const initialRow = initial[i];
-        const extractionRow = extraction[i];
-        const rotationRow = rotation[i];
-
-        table.rows.push({
-            rowHeader: [
-                isCovariance
-                    ? initialRow.block_label ?? ""
-                    : (i + 1).toString(),
+    // 7. Total Variance Explained
+    if (data.total_variance_explained) {
+        const table: Table = {
+            key: "total_variance_explained",
+            title: "Total Variance Explained",
+            columnHeaders: [
+                { header: "Component", key: "component" },
+                {
+                    header: "Initial Eigenvalues",
+                    key: "initial_eigenvalues",
+                    children: [
+                        { header: "Total", key: "initial_total" },
+                        { header: "% of Variance", key: "initial_percent" },
+                        { header: "Cumulative %", key: "initial_cumulative" },
+                    ],
+                },
+                {
+                    header: "Extraction Sums of Squared Loadings",
+                    key: "extraction_sums",
+                    children: [
+                        { header: "Total", key: "extraction_total" },
+                        { header: "% of Variance", key: "extraction_percent" },
+                        {
+                            header: "Cumulative %",
+                            key: "extraction_cumulative",
+                        },
+                    ],
+                },
+                {
+                    header: "Rotation Sums of Squared Loadings",
+                    key: "rotation_sums",
+                    children: [
+                        { header: "Total", key: "rotation_total" },
+                        { header: "% of Variance", key: "rotation_percent" },
+                        { header: "Cumulative %", key: "rotation_cumulative" },
+                    ],
+                },
             ],
+            rows: [],
+        };
 
-            initial_total: formatDisplayNumber(initialRow.total),
-            initial_percent: formatDisplayNumber(initialRow.percent_of_variance),
-            initial_cumulative: formatDisplayNumber(
-                initialRow.cumulative_percent
-            ),
+        // Determine how many components there are
+        const totalComponents = data.total_variance_explained.initial_eigenvalues?.length || 0;
+        const extractedComponents = data.total_variance_explained.extraction_sums?.length || 0;
+        const rotatedComponents = data.total_variance_explained.rotation_sums?.length || 0;
 
-            extraction_total: extractionRow
-                ? formatDisplayNumber(extractionRow.total)
-                : null,
-            extraction_percent: extractionRow
-                ? formatDisplayNumber(extractionRow.percent_of_variance)
-                : null,
-            extraction_cumulative: extractionRow
-                ? formatDisplayNumber(extractionRow.cumulative_percent)
-                : null,
+        for (let i = 0; i < totalComponents; i++) {
+            const initialEigenvalue =
+                data.total_variance_explained.initial_eigenvalues[i];
+            const extractionSum =
+                i < extractedComponents
+                    ? data.total_variance_explained.extraction_sums[i]
+                    : null;
+            const rotationSum =
+                i < rotatedComponents
+                    ? data.total_variance_explained.rotation_sums[i]
+                    : null;
 
-            rotation_total: rotationRow
-                ? formatDisplayNumber(rotationRow.total)
-                : null,
-            rotation_percent: rotationRow
-                ? formatDisplayNumber(rotationRow.percent_of_variance)
-                : null,
-            rotation_cumulative: rotationRow
-                ? formatDisplayNumber(rotationRow.cumulative_percent)
-                : null,
+            const rowData: any = {
+                rowHeader: [(i + 1).toString()],
+                initial_total: formatDisplayNumber(initialEigenvalue.total),
+                initial_percent: formatDisplayNumber(
+                    initialEigenvalue.percent_of_variance
+                ),
+                initial_cumulative: formatDisplayNumber(
+                    initialEigenvalue.cumulative_percent
+                ),
+            };
+
+            if (extractionSum) {
+                rowData.extraction_total = formatDisplayNumber(
+                    extractionSum.total
+                );
+                rowData.extraction_percent = formatDisplayNumber(
+                    extractionSum.percent_of_variance
+                );
+                rowData.extraction_cumulative = formatDisplayNumber(
+                    extractionSum.cumulative_percent
+                );
+            }
+
+            if (rotationSum) {
+                rowData.rotation_total = formatDisplayNumber(rotationSum.total);
+                rowData.rotation_percent = formatDisplayNumber(
+                    rotationSum.percent_of_variance
+                );
+                rowData.rotation_cumulative = formatDisplayNumber(
+                    rotationSum.cumulative_percent
+                );
+            }
+
+            table.rows.push(rowData);
+        }
+
+        // Add extraction method note
+        table.rows.push({
+            rowHeader: ["Extraction Method: Principal Component Analysis."],
         });
+
+        resultJson.tables.push(table);
     }
-
-    table.rows.push({
-        rowHeader: ["Extraction Method: Principal Component Analysis."],
-    });
-
-    resultJson.tables.push(table);
-}
-
-
-
 
     // 8. Component Matrix
     if (data.component_matrix) {
@@ -1056,6 +1073,12 @@ if (data.total_variance_explained) {
         // Kita meneruskan raw object dari Rust langsung karena strukturnya sudah cocok
         // dengan props yang diharapkan oleh komponen ScreePlot ({component_numbers, eigenvalues})
         resultJson.screePlotChart = data.scree_plot;
+    }
+
+    // 15. Loading Plot Data 
+    if (data.loading_plot) {
+        // Kita teruskan objek loading_plot dari Rust ke UI
+        resultJson.loadingPlotChart = data.loading_plot;
     }
 
     return resultJson;

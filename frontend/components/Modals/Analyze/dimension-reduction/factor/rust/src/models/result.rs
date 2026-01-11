@@ -1,5 +1,3 @@
-
-
 // perbaikan BISA (9/1/2026)
 use serde::{ Deserialize, Serialize };
 use std::collections::HashMap;
@@ -49,6 +47,8 @@ pub struct FactorAnalysisResult {
     pub structure_matrix: Option<StructureMatrix>,
     #[serde(rename = "component_correlation_matrix")]
     pub component_correlation_matrix: Option<ComponentCorrelationMatrix>,
+    #[serde(rename = "loading_plot")]
+    pub loading_plot: Option<LoadingPlot>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -255,4 +255,24 @@ pub struct StructureMatrix {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ComponentCorrelationMatrix {
     pub correlations: Vec<Vec<f64>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LoadingPlot {
+    /// Nama variabel (label titik)
+    pub variables: Vec<String>, 
+
+    /// Nama komponen sumbu X (misal: "Component 1")
+    #[serde(rename = "component_x")] 
+    pub component_x: String,
+
+    /// Nama komponen sumbu Y (misal: "Component 2")
+    #[serde(rename = "component_y")] 
+    pub component_y: String,
+
+    /// Loading pada komponen X
+    pub x_loadings: Vec<f64>, 
+
+    /// Loading pada komponen Y
+    pub y_loadings: Vec<f64>, 
 }

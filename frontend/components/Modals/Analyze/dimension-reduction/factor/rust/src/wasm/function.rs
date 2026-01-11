@@ -1,4 +1,3 @@
-
 // perbaikan bisa (9/1/2026)
 
 // Peran function.rs itu orchestrator / pipeline, bukan formatter dan bukan UI adapter.
@@ -320,43 +319,44 @@ pub fn run_analysis(
         }
     }
 
-    // Step 15: Generate Loading Plots if requested
-    if config.rotation.loading_plot {
-        executed_functions.push("generate_loading_plots".to_string());
-        match core::generate_loading_plots(&filtered_data, config) {
-            Ok(_) => {}
-            Err(e) => {
-                error_collector.add_error("generate_loading_plots", &e);
-                // Continue execution despite errors for non-critical functions
-            }
+    let mut result = FactorAnalysisResult {
+    descriptive_statistics,
+    scree_plot,
+    correlation_matrix,
+    inverse_correlation_matrix,
+    covariance_matrix,
+    inverse_covariance_matrix,
+    kmo_bartletts_test,
+    anti_image_matrices,
+    communalities,
+    total_variance_explained,
+    component_matrix,
+    reproduced_correlations,
+    reproduced_covariances,
+    rotated_component_matrix,
+    component_transformation_matrix,
+    pattern_matrix,
+    structure_matrix,
+    component_correlation_matrix,
+    component_score_coefficient_matrix,
+    component_score_covariance_matrix,
+    loading_plot: None,
+};
+
+if config.rotation.loading_plot {
+    executed_functions.push("generate_loading_plots".to_string());
+    match core::generate_loading_plots(&result) {
+        Ok(plot) => {
+            result.loading_plot = Some(plot);
+        }
+        Err(e) => {
+            error_collector.add_error("generate_loading_plots", &e);
         }
     }
+}
 
-    // Create the final result
-    let result = FactorAnalysisResult {
-        descriptive_statistics,
-        scree_plot,
-        correlation_matrix,
-        inverse_correlation_matrix,
-        covariance_matrix,
-        inverse_covariance_matrix,
-        kmo_bartletts_test,
-        anti_image_matrices,
-        communalities,
-        total_variance_explained,
-        component_matrix,
-        reproduced_correlations,
-        reproduced_covariances,
-        rotated_component_matrix,
-        component_transformation_matrix,
-        pattern_matrix,
-        structure_matrix,
-        component_correlation_matrix,
-        component_score_coefficient_matrix,
-        component_score_covariance_matrix,
-    };
+Ok(Some(result))
 
-    Ok(Some(result))
 }
 
 pub fn get_results(result: &Option<FactorAnalysisResult>) -> Result<JsValue, JsValue> {

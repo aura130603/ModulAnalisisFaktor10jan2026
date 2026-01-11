@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+
 export class FactorAnalysis {
   free(): void;
   [Symbol.dispose](): void;
@@ -30,6 +31,7 @@ export interface InitOutput {
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
+
 /**
 * Instantiates the given `module`, which can either be bytes or
 * a precompiled `WebAssembly.Module`.
