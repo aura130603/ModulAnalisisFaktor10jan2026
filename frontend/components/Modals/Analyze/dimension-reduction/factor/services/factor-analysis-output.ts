@@ -420,54 +420,32 @@ if (totalVarianceExplained) {
             }
 
 
-/*
- * 📐 Loading Plot 📐
- */
-const loadingChartDataRaw = (formattedResult as any).loadingPlotChart;
 
-if (loadingChartDataRaw) {
+
+/*
+ * 📐 Loading Plot Logic 📐
+ */
+// Ambil data dari Rust (sesuai struct baru)
+const loadingPlotDataRaw = (formattedResult as any).loadingPlotChart;
+
+if (loadingPlotDataRaw) {
     const loadingPlotId = await addAnalytic(logId, {
         title: `Loading Plot`,
-        note: "",
+        note: "Interactive Plotly Visualization",
     });
 
-    // Transformasi data dari Rust LoadingPlot ke format Scatter Plot Chart
-    const scatterData = loadingChartDataRaw.variables.map((varName: string, i: number) => ({
-        x: loadingChartDataRaw.x_loadings[i],
-        y: loadingChartDataRaw.y_loadings[i],
-        label: varName,
-    }));
-
-    const loadingChartConfig = {
-        charts: [{
-            chartType: "Scatter Plot",
-            chartData: scatterData,
-            chartMetadata: {
-                title: "Loading Plot",
-                subtitle: `Component: ${loadingChartDataRaw.component_x} vs ${loadingChartDataRaw.component_y}`,
-                description: "Factor Loadings Chart",
-                axisInfo: {
-                    x: loadingChartDataRaw.component_x,
-                    y: loadingChartDataRaw.component_y,
-                },
-            },
-            chartConfig: {
-                width: 800,
-                height: 600,
-                useAxis: true,
-                axisLabels: {
-                    x: loadingChartDataRaw.component_x,
-                    y: loadingChartDataRaw.component_y,
-                },
-            },
-        }],
+    // Kita simpan data mentah saja (JSON), karena komponen React yang akan mengolahnya
+    const chartPayload = {
+        type: "PLOTLY_LOADING_PLOT", // Penanda untuk Frontend merender komponen yg benar
+        data: loadingPlotDataRaw
     };
 
     await addStatistic(loadingPlotId, {
         title: `Loading Plot`,
-        description: `Factor Loadings`,
-        output_data: JSON.stringify(loadingChartConfig),
-        components: "LoadingPlot", // Pastikan komponen renderer ini ada di UI Anda
+        description: `Factor Loadings (${loadingPlotDataRaw.axis_labels.length} Components)`,
+        // Simpan JSON mentah ini ke database/state
+        output_data: JSON.stringify(chartPayload),
+        components: "LoadingPlot", 
     });
 }
 

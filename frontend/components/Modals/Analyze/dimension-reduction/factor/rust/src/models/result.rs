@@ -259,20 +259,16 @@ pub struct ComponentCorrelationMatrix {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LoadingPlot {
-    /// Nama variabel (label titik)
-    pub variables: Vec<String>, 
+    /// Label sumbu (misal: ["Component 1", "Component 2", "Component 3"])
+    pub axis_labels: Vec<String>,
+    /// Data titik variabel
+    pub points: Vec<LoadingPoint>,
+}
 
-    /// Nama komponen sumbu X (misal: "Component 1")
-    #[serde(rename = "component_x")] 
-    pub component_x: String,
-
-    /// Nama komponen sumbu Y (misal: "Component 2")
-    #[serde(rename = "component_y")] 
-    pub component_y: String,
-
-    /// Loading pada komponen X
-    pub x_loadings: Vec<f64>, 
-
-    /// Loading pada komponen Y
-    pub y_loadings: Vec<f64>, 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LoadingPoint {
+    /// Nama variabel (misal: "VAR0001")
+    pub label: String,
+    /// Koordinat: [x, y] atau [x, y, z]
+    pub coordinates: Vec<f64>, 
 }

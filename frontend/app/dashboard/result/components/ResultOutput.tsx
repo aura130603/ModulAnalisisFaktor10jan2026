@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 import { useResultStore } from "@/stores/useResultStore";
 import GeneralChartContainer from "@/components/Output/Chart/GeneralChartContainer";
 import { ScreePlot } from "@/components/Modals/Analyze/dimension-reduction/factor/charts/ScreePlot";
+import FactorLoadingChart from "@/components/Modals/Analyze/dimension-reduction/factor/charts/FactorLoadingChart";
+
 
 const TiptapEditor = dynamic(
   () => import("@/components/Output/Editor/TiptapEditor"),
@@ -187,7 +189,17 @@ const ResultOutput: React.FC = () => {
                                   );
                                 }
 
-                                if (parsedData.tables) {
+                                // --- START MODIFICATION ---
+                                // Pengecekan untuk Loading Plot Plotly
+                                if (parsedData.type === "PLOTLY_LOADING_PLOT") {
+                                  return (
+                                    <div data-testid={`result-loading-plot-${stat.id}`} className="flex justify-center w-full">
+                                      <FactorLoadingChart data={parsedData.data} />
+                                    </div>
+                                  );
+                                } 
+                                // --- END MODIFICATION ---
+                                else if (parsedData.tables) {
                                   const isExpandedTable = expandedTables[statId] ?? false;
 
                                   // Determine if the rendered table is "long" enough to warrant a toggle (simple heuristic)

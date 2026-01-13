@@ -52,14 +52,38 @@ pub fn rotate_factors(
 
 
 // Varimax rotation (SPSS-compatible)
+// TIMPA SELURUH FUNGSI INI
 pub fn rotate_varimax(
     extraction_result: &ExtractionResult,
     config: &FactorAnalysisConfig
 ) -> Result<RotationResult, String> {
 
-    let loadings = &extraction_result.loadings;
-    let n_rows = loadings.nrows(); // variables
-    let n_cols = loadings.ncols(); // components
+    // COPY data loadings agar bisa kita modifikasi (Pre-processing)
+    let mut processed_loadings = extraction_result.loadings.clone();
+    let n_rows = processed_loadings.nrows(); 
+    let n_cols = processed_loadings.ncols(); 
+
+    // =========================================================
+    // 0. PRE-PROCESS: Standardize Unrotated Signs (SPSS Fix)
+    // =========================================================
+    // SPSS memastikan jumlah loading per kolom pada UNROTATED matrix
+    // selalu positif. Jika negatif, balik tandanya.
+    // Ini memperbaiki tanda pada "Component Transformation Matrix".
+    for j in 0..n_cols {
+        let mut col_sum = 0.0;
+        for i in 0..n_rows {
+            col_sum += processed_loadings[(i, j)];
+        }
+        
+        if col_sum < 0.0 {
+            for i in 0..n_rows {
+                processed_loadings[(i, j)] *= -1.0;
+            }
+        }
+    }
+
+    // Gunakan processed_loadings sebagai basis perhitungan selanjutnya
+    let loadings = &processed_loadings;
 
     // =========================================================
     // 1. Kaiser normalization
@@ -141,9 +165,8 @@ pub fn rotate_varimax(
         }
     }
 
-
     // =========================================================
-    // 5. SPSS-style sign reflection
+    // 5. SPSS-style sign reflection (Fix Rotated Columns)
     // =========================================================
     for j in 0..n_cols {
         let mut sum = 0.0;
@@ -161,25 +184,78 @@ pub fn rotate_varimax(
     }
 
     // =========================================================
-    // 6. DO NOT resort factors (SPSS keeps order)
+    // 6. SORT COMPONENTS BY VARIANCE (SPSS STYLE)
     // =========================================================
+    
+    // 1. Hitung Variance (SSL) untuk setiap kolom
+    let mut col_variances: Vec<(usize, f64)> = (0..n_cols)
+        .map(|j| {
+            let mut ssl = 0.0;
+            for i in 0..n_rows {
+                ssl += rotated_loadings[(i, j)].powi(2);
+            }
+            (j, ssl)
+        })
+        .collect();
+
+    // 2. Urutkan Descending berdasarkan SSL
+    col_variances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    // 3. Buat Matrix baru yang sudah terurut
+    let mut sorted_loadings = DMatrix::<f64>::zeros(n_rows, n_cols);
+    let mut sorted_transform = DMatrix::<f64>::zeros(n_cols, n_cols);
+
+    for (new_col_idx, (old_col_idx, _)) in col_variances.iter().enumerate() {
+        // Pindahkan kolom loadings
+        for i in 0..n_rows {
+            sorted_loadings[(i, new_col_idx)] = rotated_loadings[(i, *old_col_idx)];
+        }
+        // Pindahkan kolom transformation matrix
+        for i in 0..n_cols {
+            sorted_transform[(i, new_col_idx)] = transformation_matrix[(i, *old_col_idx)];
+        }
+    }
+
     Ok(RotationResult {
-        rotated_loadings,
-        transformation_matrix,
+        rotated_loadings: sorted_loadings,
+        transformation_matrix: sorted_transform,
         factor_correlations: None, // orthogonal
     })
 }
 
 
 // Quartimax rotation (SPSS-compatible)
+// TIMPA SELURUH FUNGSI INI
 pub fn rotate_quartimax(
     extraction_result: &ExtractionResult,
     config: &FactorAnalysisConfig
 ) -> Result<RotationResult, String> {
 
-    let loadings = &extraction_result.loadings;
-    let n_rows = loadings.nrows(); // variables
-    let n_cols = loadings.ncols(); // components
+    // COPY data loadings agar bisa kita modifikasi (Pre-processing)
+    let mut processed_loadings = extraction_result.loadings.clone();
+    let n_rows = processed_loadings.nrows(); 
+    let n_cols = processed_loadings.ncols(); 
+
+    // =========================================================
+    // 0. PRE-PROCESS: Standardize Unrotated Signs (SPSS Fix)
+    // =========================================================
+    // Pastikan jumlah loading per kolom pada UNROTATED matrix positif.
+    // Ini penting agar Component Transformation Matrix konsisten dengan SPSS.
+    for j in 0..n_cols {
+        let mut col_sum = 0.0;
+        for i in 0..n_rows {
+            col_sum += processed_loadings[(i, j)];
+        }
+        
+        if col_sum < 0.0 {
+            for i in 0..n_rows {
+                processed_loadings[(i, j)] *= -1.0;
+            }
+        }
+    }
+
+    // Gunakan processed_loadings sebagai basis perhitungan selanjutnya
+    let loadings = &processed_loadings;
 
     // =========================================================
     // 1. Kaiser normalization (SPSS default)
@@ -268,14 +344,46 @@ pub fn rotate_quartimax(
     }
 
     // =========================================================
-    // 6. DO NOT reorder factors (SPSS behavior)
+    // 6. SORT COMPONENTS BY VARIANCE (SPSS STYLE)
     // =========================================================
+    
+    // 1. Hitung Variance (SSL) untuk setiap kolom
+    let mut col_variances: Vec<(usize, f64)> = (0..n_cols)
+        .map(|j| {
+            let mut ssl = 0.0;
+            for i in 0..n_rows {
+                ssl += rotated_loadings[(i, j)].powi(2);
+            }
+            (j, ssl)
+        })
+        .collect();
+
+    // 2. Urutkan Descending berdasarkan SSL
+    col_variances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    // 3. Buat Matrix baru yang sudah terurut
+    let mut sorted_loadings = DMatrix::<f64>::zeros(n_rows, n_cols);
+    let mut sorted_transform = DMatrix::<f64>::zeros(n_cols, n_cols);
+
+    for (new_col_idx, (old_col_idx, _)) in col_variances.iter().enumerate() {
+        // Pindahkan kolom loadings
+        for i in 0..n_rows {
+            sorted_loadings[(i, new_col_idx)] = rotated_loadings[(i, *old_col_idx)];
+        }
+        // Pindahkan kolom transformation matrix
+        for i in 0..n_cols {
+            sorted_transform[(i, new_col_idx)] = transformation_matrix[(i, *old_col_idx)];
+        }
+    }
+
     Ok(RotationResult {
-        rotated_loadings,
-        transformation_matrix,
+        rotated_loadings: sorted_loadings,
+        transformation_matrix: sorted_transform,
         factor_correlations: None,
     })
 }
+
+
 
 
 // =========================================================
@@ -284,6 +392,7 @@ pub fn rotate_quartimax(
 // - k == 2  → Equamax == Varimax (SPSS behavior)
 // - k >= 3  → Orthomax γ = p / (2k)
 // =========================================================
+
 pub fn rotate_equimax(
     extraction_result: &ExtractionResult,
     config: &FactorAnalysisConfig
@@ -306,11 +415,13 @@ pub fn rotate_equimax(
     let mut h = vec![0.0; n_rows];
     let mut normalized = loadings.clone();
 
+
     for i in 0..n_rows {
         let mut ss = 0.0;
         for j in 0..n_cols {
             ss += loadings[(i, j)].powi(2);
         }
+
         h[i] = ss.sqrt().max(1e-12);
         for j in 0..n_cols {
             normalized[(i, j)] /= h[i];
@@ -319,24 +430,23 @@ pub fn rotate_equimax(
 
     // =========================================================
     // 2. Init rotation matrix
-    // =========================================================
+    // =======================================================
     let mut t = DMatrix::<f64>::identity(n_cols, n_cols);
 
     let max_iter = config.rotation.max_iter as usize;
     let tol = 1e-6;
     let mut prev_obj = 0.0;
-
     let gamma = n_rows as f64 / (2.0 * n_cols as f64);
 
     // =========================================================
     // 3. Orthomax Equamax iteration
     // =========================================================
     for _ in 0..max_iter {
-
         let lambda = &normalized * &t;
 
         // Λ³
         let mut lambda3 = DMatrix::<f64>::zeros(n_rows, n_cols);
+
         for i in 0..n_rows {
             for j in 0..n_cols {
                 lambda3[(i, j)] = lambda[(i, j)].powi(3);
@@ -366,7 +476,6 @@ pub fn rotate_equimax(
         let svd = SVD::new(m, true, true);
         let u = svd.u.ok_or("SVD failed")?;
         let v_t = svd.v_t.ok_or("SVD failed")?;
-
         t = &u * &v_t;
 
         // =====================================================
@@ -376,12 +485,13 @@ pub fn rotate_equimax(
         for j in 0..n_cols {
             let mut s2 = 0.0;
             let mut s4 = 0.0;
+
             for i in 0..n_rows {
                 let v = lambda[(i, j)];
                 s2 += v * v;
                 s4 += v.powi(4);
             }
-            obj += s4 - gamma * (s2 * s2) / n_rows as f64;
+            obj += s4 - gamma * (s2 * s2) / n_rows as f64
         }
 
         if (obj - prev_obj).abs() < tol {
@@ -389,6 +499,7 @@ pub fn rotate_equimax(
         }
         prev_obj = obj;
     }
+
 
     // =========================================================
     // 4. Apply rotation & de-normalize
@@ -400,7 +511,7 @@ pub fn rotate_equimax(
         }
     }
 
-    // =========================================================
+    // ========================================================
     // 5. SPSS sign reflection
     // =========================================================
     for j in 0..n_cols {
@@ -408,6 +519,7 @@ pub fn rotate_equimax(
         for i in 0..n_rows {
             sum += rotated[(i, j)];
         }
+
         if sum < 0.0 {
             for i in 0..n_rows {
                 rotated[(i, j)] *= -1.0;
@@ -424,7 +536,6 @@ pub fn rotate_equimax(
         factor_correlations: None,
     })
 }
-
 
 
 
