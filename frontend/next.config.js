@@ -5,7 +5,7 @@ const nextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
     },
-    distDir: process.env.NODE_ENV === 'production' ? '.next' : '.next-dev',
+    distDir: '.next',
     allowedDevOrigins: [
         'localhost',
         '127.0.0.1',
