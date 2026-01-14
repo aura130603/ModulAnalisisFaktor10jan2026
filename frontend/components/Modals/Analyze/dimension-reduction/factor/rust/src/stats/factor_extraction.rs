@@ -377,27 +377,86 @@ fn extract_factors_from_adjusted_matrix(
 }
 
 // Determine number of factors to retain - no change needed
+// pub fn determine_factors_to_retain(eigenvalues: &[f64], config: &FactorAnalysisConfig) -> usize {
+//     if let Some(max_factors) = config.extraction.max_factors {
+//         let max = max_factors as usize;
+//         if max > 0 && max <= eigenvalues.len() {
+//             return max;
+//         }
+//     }
+
+//     // Use eigenvalue criterion (Kaiser criterion by default)
+//     let eigen_cutoff = config.extraction.eigen_val;
+//     let count = eigenvalues
+//         .iter()
+//         .take_while(|&&val| val >= eigen_cutoff)
+//         .count();
+
+//     if count == 0 {
+//         1 // Always retain at least one factor
+//     } else {
+//         count
+//     }
+// }
+
+
+
+// perbaikan bisa 14/01/2026
+// Di file: factor_extraction.rs
+
 pub fn determine_factors_to_retain(eigenvalues: &[f64], config: &FactorAnalysisConfig) -> usize {
-    if let Some(max_factors) = config.extraction.max_factors {
-        let max = max_factors as usize;
-        if max > 0 && max <= eigenvalues.len() {
-            return max;
+    // KASUS 1: User memilih "Fixed number of factors"
+    // Kita cek apakah flag 'factor' bernilai true DAN user mengisi angka max_factors
+    if config.extraction.factor {
+        if let Some(max) = config.extraction.max_factors {
+            let max_usize = max as usize;
+            // Validasi input: harus > 0 dan tidak boleh melebihi jumlah variabel
+            if max_usize > 0 && max_usize <= eigenvalues.len() {
+                return max_usize;
+            }
         }
     }
 
-    // Use eigenvalue criterion (Kaiser criterion by default)
-    let eigen_cutoff = config.extraction.eigen_val;
+    // KASUS 2: User memilih "Based on Eigenvalue" (Default SPSS)
+    // Atau jika Kasus 1 gagal (misal user pilih fixed tapi tidak isi angka)
+    
+    // A. Hitung Rata-rata Eigenvalue (Mean Eigenvalue)
+    // Ini adalah kunci agar logika "Based on Eigenvalue" bekerja untuk Covariance Matrix
+    let total_eigenvalue: f64 = eigenvalues.iter().sum();
+    let n_vars = eigenvalues.len() as f64;
+    
+    // Hindari pembagian dengan nol
+    let mean_eigenvalue = if n_vars > 0.0 { 
+        total_eigenvalue / n_vars 
+    } else { 
+        1.0 
+    };
+
+    // B. Ambil nilai pengali dari config (Default 1.0 jika user tidak isi)
+    let multiplier = if config.extraction.eigen_val <= 0.0 {
+        1.0 
+    } else {
+        config.extraction.eigen_val
+    };
+
+    // C. Hitung Threshold (Ambang Batas)
+    // Rumus SPSS: Threshold = (Nilai Input User) * (Mean Eigenvalue)
+    let threshold = multiplier * mean_eigenvalue;
+
+    // D. Hitung berapa banyak faktor yang nilainya >= Threshold
     let count = eigenvalues
         .iter()
-        .take_while(|&&val| val >= eigen_cutoff)
+        .take_while(|&&val| val >= threshold)
         .count();
 
+    // Pastikan minimal 1 faktor diambil agar program tidak error
     if count == 0 {
-        1 // Always retain at least one factor
+        1
     } else {
         count
     }
 }
+
 
 // Unweighted Least Squares extraction
 pub fn extract_unweighted_least_squares(

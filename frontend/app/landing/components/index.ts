@@ -1,4 +1,5 @@
+export * from './AnimatedSection';
 export * from './ComparisonSection';
 export * from './FeaturesSection';
 export * from './HeroSection';
-export * from './CspSection'; 
+export * from './CspSection';
