@@ -1,12 +1,13 @@
 // perbaikan bisa 15/1/2026
-
 // perbaikan bisa (9/1/2026)
+
 use crate::stats::matrix::{calculate_mean, calculate_std_dev}; // Asumsi ada helper ini, atau hitung manual
 use std::collections::HashMap;
-use nalgebra::DMatrix;
+use nalgebra::{DMatrix, SymmetricEigen,};
 use super::matrix::calculate_raw_variances;
+use super::core::{ calculate_matrix, extract_data_matrix, extract_factors, rotate_factors };
 use crate::models::{
-    config::FactorAnalysisConfig,
+    config::{FactorAnalysisConfig,ExtractionMethod,},
     data::AnalysisData,
     result::{
         Communalities,
@@ -28,7 +29,7 @@ use crate::models::{
     },
 };
 
-use super::core::{ calculate_matrix, extract_data_matrix, extract_factors, rotate_factors };
+
 
 pub fn calculate_communalities(
     data: &AnalysisData,
@@ -43,27 +44,56 @@ pub fn calculate_communalities(
     } else if config.extraction.correlation {
         "correlation"
     } else {
-    // Default jika tidak ada yang dipilih (misalnya, default ke korelasi)
         "correlation" 
     };
 
     let matrix_for_extraction = calculate_matrix(&data_matrix, matrix_type)?; 
     let extraction_result = extract_factors(&matrix_for_extraction, config, &var_names)?;
 
-    // Properti baru
+    // --- LOGIKA BARU UNTUK NILAI INITIAL ---
+    // Jika PCA: Initial = 1.0
+    // Jika ULS/PAF/ML/Alpha/Image: Initial = SMC (Squared Multiple Correlation)
+    let initial_values: Vec<f64> = match config.extraction.method {
+        ExtractionMethod::PrincipalComponents => vec![1.0; var_names.len()],
+        _ => {
+            // Hitung SMC dari Correlation Matrix
+            // Walaupun user pilih Covariance, SMC tetap dihitung based on correlation matrix untuk nilai "Rescaled/Initial"
+            let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
+            match corr_matrix.try_inverse() {
+                Some(inv) => {
+                    (0..var_names.len())
+                        .map(|i| {
+                            let smc = 1.0 - 1.0 / inv[(i, i)];
+                            // Hindari nilai negatif kecil akibat presisi floating point
+                            if smc < 0.0 { 0.0 } else { smc }
+                        })
+                        .collect()
+                },
+                None => vec![1.0; var_names.len()] // Fallback jika matriks singular, misal ke max correlation atau 1.0
+            }
+        }
+    };
+    // ----------------------------------------
+
     let mut raw_initial = HashMap::new();
     let mut rescaled_initial = HashMap::new();
     let mut extraction = HashMap::new();
 
-    // 1. Hitung Raw Initial Variances (Varians Mentah)
+    // Hitung Raw Initial Variances (Varians Mentah)
     let raw_variances = calculate_raw_variances(&data_matrix)?; 
+    
     for (i, var_name) in var_names.iter().enumerate() {
 
-        // Raw Initial: Selalu diisi dengan Varians Mentah, terlepas dari Extraction Method
+        // Raw Initial: Varians Mentah (Untuk Covariance Analysis)
         raw_initial.insert(var_name.clone(), raw_variances[i]);
 
-        // Rescaled Initial: Selalu 1.0
-        rescaled_initial.insert(var_name.clone(), 1.0);
+        // Rescaled Initial: Gunakan nilai SMC yang sudah dihitung di atas
+        // Jika PCA = 1.0, Jika ULS = SMC. Ini akan cocok dengan SPSS.
+        if i < initial_values.len() {
+             rescaled_initial.insert(var_name.clone(), initial_values[i]);
+        } else {
+             rescaled_initial.insert(var_name.clone(), 1.0);
+        }
 
         // Extraction Communality
         if i < extraction_result.communalities.len() {
@@ -74,189 +104,50 @@ pub fn calculate_communalities(
     Ok(Communalities {
         raw_initial,
         rescaled_initial,
-        extraction, // Tambahkan juga extraction communalities
+        extraction,
         variable_order: var_names,
         extraction_matrix_type: matrix_type.to_string(),
     })
-
 }
 
 
-// pub fn calculate_total_variance_explained(
-//     eigenvalues: &[f64],
-//     total_variance: f64,
-//     n_variables: usize,
-//     matrix_type: &str,
-// ) -> TotalVarianceExplained {
-
-//     match matrix_type {
-//         "correlation" => {
-//             let mut initial = Vec::new();
-//             let mut extraction = Vec::new();
-//             let mut rotation = Vec::new();
-
-//             let mut cumulative = 0.0;
-
-//             for &eig in eigenvalues {
-//                 let percent = (eig / n_variables as f64) * 100.0;
-//                 cumulative += percent;
-
-//                 let component = TotalVarianceComponent {
-//                     total: eig,
-//                     percent_of_variance: percent,
-//                     cumulative_percent: cumulative,
-//                 };
-
-//                 initial.push(component.clone());
-//                 extraction.push(component.clone());
-//                 rotation.push(component);
-//             }
-
-//             TotalVarianceExplained {
-//                 blocks: vec![
-//                     TotalVarianceBlock {
-//                         label: "Component".to_string(),
-//                         initial,
-//                         extraction,
-//                         rotation: Some(rotation),
-//                     }
-//                 ],
-//                 extraction_matrix_type: "correlation".to_string(),
-//             }
-//         }
-
-//         "covariance" => {
-//             let mut raw_initial = Vec::new();
-//             let mut raw_extraction = Vec::new();
-
-//             let mut rescaled_initial = Vec::new();
-//             let mut rescaled_extraction = Vec::new();
-
-//             let mut cumulative_raw = 0.0;
-//             let mut cumulative_rescaled = 0.0;
-
-//             for &eig in eigenvalues {
-//                 // RAW
-//                 let percent_raw = (eig / total_variance) * 100.0;
-//                 cumulative_raw += percent_raw;
-
-//                 raw_initial.push(TotalVarianceComponent {
-//                     total: eig,
-//                     percent_of_variance: percent_raw,
-//                     cumulative_percent: cumulative_raw,
-//                 });
-
-//                 raw_extraction.push(TotalVarianceComponent {
-//                     total: eig,
-//                     percent_of_variance: percent_raw,
-//                     cumulative_percent: cumulative_raw,
-//                 });
-
-//                 // RESCALED
-//                 let rescaled = eig / total_variance * n_variables as f64;
-//                 let percent_rescaled = (rescaled / n_variables as f64) * 100.0;
-//                 cumulative_rescaled += percent_rescaled;
-
-//                 rescaled_initial.push(TotalVarianceComponent {
-//                     total: rescaled,
-//                     percent_of_variance: percent_rescaled,
-//                     cumulative_percent: cumulative_rescaled,
-//                 });
-
-//                 rescaled_extraction.push(TotalVarianceComponent {
-//                     total: rescaled,
-//                     percent_of_variance: percent_rescaled,
-//                     cumulative_percent: cumulative_rescaled,
-//                 });
-//             }
-
-//             TotalVarianceExplained {
-//                 blocks: vec![
-//                     TotalVarianceBlock {
-//                         label: "Raw".to_string(),
-//                         initial: raw_initial,
-//                         extraction: raw_extraction,
-//                         rotation: None,
-//                     },
-//                     TotalVarianceBlock {
-//                         label: "Rescaled".to_string(),
-//                         initial: rescaled_initial,
-//                         extraction: rescaled_extraction.clone(),
-//                         rotation: Some(rescaled_extraction),
-//                     },
-//                 ],
-//                 extraction_matrix_type: "covariance".to_string(),
-//             }
-//         }
-
-//         _ => panic!("Unknown matrix type"),
-//     }
-// }
-
-// pub fn calculate_total_variance_explained_from_data(
-//     data: &AnalysisData,
-//     config: &FactorAnalysisConfig,
-// ) -> Result<TotalVarianceExplained, String> {
-
-//     // Ambil eigenvalues dari hasil ekstraksi
-//     let eigenvalues = data
-//         .eigenvalues
-//         .as_ref()
-//         .ok_or("Eigenvalues not found in AnalysisData")?;
-
-//     let n_variables = data.n_variables;
-
-//     let matrix_type = if config.extraction.covariance {
-//         "covariance"
-//     } else {
-//         "correlation"
-//     };
-
-//     let total_variance = if matrix_type == "correlation" {
-//         n_variables as f64
-//     } else {
-//         data.total_variance
-//             .ok_or("Total variance missing for covariance matrix")?
-//     };
-
-//     Ok(calculate_total_variance_explained(
-//         eigenvalues,
-//         total_variance,
-//         n_variables,
-//         matrix_type,
-//     ))
-// }
-
-
 pub fn calculate_total_variance_explained(
-    eigenvalues: &[f64],
+    initial_eigenvalues: &[f64],    // Input baru: Full Eigenvalues (N)
+    extraction_eigenvalues: &[f64], // Input baru: Extracted Eigenvalues (k)
     total_variance: f64,
     n_variables: usize,
     matrix_type: &str,
 ) -> TotalVarianceExplained {
 
+    // Helper closure untuk membuat komponen variance
+    let create_components = |eigenvalues: &[f64]| -> Vec<TotalVarianceComponent> {
+        let mut components = Vec::new();
+        let mut cumulative = 0.0;
+        
+        for &eig in eigenvalues {
+            let percent = (eig / total_variance) * 100.0;
+            cumulative += percent;
+            
+            components.push(TotalVarianceComponent {
+                total: eig,
+                percent_of_variance: percent,
+                cumulative_percent: cumulative,
+            });
+        }
+        components
+    };
+
     match matrix_type {
         "correlation" => {
-            let mut initial = Vec::new();
-            let mut extraction = Vec::new();
-            let mut rotation = Vec::new();
+            // 1. Initial: Gunakan full initial_eigenvalues (N baris)
+            let initial = create_components(initial_eigenvalues);
+            
+            // 2. Extraction: Gunakan extraction_eigenvalues (k baris)
+            let extraction = create_components(extraction_eigenvalues);
 
-            let mut cumulative = 0.0;
-
-            for &eig in eigenvalues {
-                let percent = (eig / n_variables as f64) * 100.0;
-                cumulative += percent;
-
-                let component = TotalVarianceComponent {
-                    total: eig,
-                    percent_of_variance: percent,
-                    cumulative_percent: cumulative,
-                };
-
-                initial.push(component.clone());
-                extraction.push(component.clone());
-                rotation.push(component);
-            }
+            // 3. Rotation: (Saat ini placeholder, idealnya diisi setelah rotasi dilakukan)
+            // Karena fungsi ini dipanggil sebelum rotasi di function.rs, kita set None atau copy extraction
+            let rotation = Some(extraction.clone()); 
 
             TotalVarianceExplained {
                 blocks: vec![
@@ -264,7 +155,7 @@ pub fn calculate_total_variance_explained(
                         label: "Component".to_string(),
                         initial,
                         extraction,
-                        rotation: Some(rotation),
+                        rotation,
                     }
                 ],
                 extraction_matrix_type: "correlation".to_string(),
@@ -272,57 +163,19 @@ pub fn calculate_total_variance_explained(
         }
 
         "covariance" => {
-            let mut raw_initial = Vec::new();
-            let mut raw_extraction = Vec::new();
+            // === RAW ===
+            // Initial Raw
+            let raw_initial = create_components(initial_eigenvalues);
+            // Extraction Raw
+            let raw_extraction = create_components(extraction_eigenvalues);
 
-            let mut rescaled_initial = Vec::new();
-            let mut rescaled_extraction = Vec::new();
-
-            let mut cumulative_raw = 0.0;
+            // === RESCALED ===
+            // Untuk Covariance analysis di SPSS:
+            // "Initial eigenvalues are the same across the raw and rescaled solution"
+            // Jadi kita gunakan nilai eigenvalues yang sama, persentasenya pun sama.
             
-            // Variabel cumulative untuk rescaled sebenarnya sama dengan raw
-            // karena persentasenya sama.
-            let mut cumulative_rescaled = 0.0; 
-
-            for &eig in eigenvalues {
-                // === RAW ===
-                let percent_raw = (eig / total_variance) * 100.0;
-                cumulative_raw += percent_raw;
-
-                raw_initial.push(TotalVarianceComponent {
-                    total: eig,
-                    percent_of_variance: percent_raw,
-                    cumulative_percent: cumulative_raw,
-                });
-
-                raw_extraction.push(TotalVarianceComponent {
-                    total: eig,
-                    percent_of_variance: percent_raw,
-                    cumulative_percent: cumulative_raw,
-                });
-
-                // === RESCALED (PERBAIKAN DISINI) ===
-                // Menurut SPSS: "initial eigenvalues are the same across the raw and rescaled solution"
-                // Jadi, jangan lakukan normalisasi (eig / total * n_vars). Gunakan eig mentah.
-                
-                let rescaled = eig; // <--- UBAH INI (sebelumnya ada rumus matematika)
-                
-                // Persentase varians juga tetap menggunakan basis total variance yang sama
-                let percent_rescaled = percent_raw; 
-                cumulative_rescaled += percent_rescaled;
-
-                rescaled_initial.push(TotalVarianceComponent {
-                    total: rescaled,
-                    percent_of_variance: percent_rescaled,
-                    cumulative_percent: cumulative_rescaled,
-                });
-
-                rescaled_extraction.push(TotalVarianceComponent {
-                    total: rescaled,
-                    percent_of_variance: percent_rescaled,
-                    cumulative_percent: cumulative_rescaled,
-                });
-            }
+            let rescaled_initial = raw_initial.clone();
+            let rescaled_extraction = raw_extraction.clone();
 
             TotalVarianceExplained {
                 blocks: vec![
@@ -335,8 +188,8 @@ pub fn calculate_total_variance_explained(
                     TotalVarianceBlock {
                         label: "Rescaled".to_string(),
                         initial: rescaled_initial,
-                        extraction: rescaled_extraction.clone(),
-                        rotation: Some(rescaled_extraction),
+                        extraction: rescaled_extraction,
+                        rotation: None, // Rotation biasanya hanya ditampilkan untuk Raw atau satu section saja
                     },
                 ],
                 extraction_matrix_type: "covariance".to_string(),
@@ -347,8 +200,67 @@ pub fn calculate_total_variance_explained(
     }
 }
 
-// PERBAIKAN UTAMA:
-// Fungsi ini sekarang menghitung ekstraksi sendiri, tidak bergantung pada data.eigenvalues yang kosong
+// pub fn calculate_total_variance_explained_from_data(
+//     data: &AnalysisData,
+//     config: &FactorAnalysisConfig,
+// ) -> Result<TotalVarianceExplained, String> {
+
+//     // 1. Ekstrak data mentah dan nama variabel
+//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+//     let n_variables = var_names.len();
+
+//     // 2. Tentukan tipe matriks (Covariance atau Correlation)
+//     let is_covariance = config.extraction.covariance;
+//     let matrix_type = if is_covariance {
+//         "covariance"
+//     } else {
+//         "correlation"
+//     };
+
+//     // 3. Hitung Matriks untuk Analisis (R atau S)
+//     let matrix = calculate_matrix(&data_matrix, matrix_type)?;
+
+//     // =========================================================================
+//     // PERBAIKAN UTAMA: PISAHKAN PERHITUNGAN INITIAL VS EXTRACTION
+//     // =========================================================================
+
+//     // A. HITUNG INITIAL EIGENVALUES (SELALU N BARIS)
+//     // Ini merepresentasikan varians awal sebelum faktor direduksi.
+//     // Kita lakukan dekomposisi eigen penuh pada matriks input.
+//     let eigen_decomp = matrix.clone().symmetric_eigen();
+//     let mut initial_eigenvalues: Vec<f64> = eigen_decomp.eigenvalues.data.as_vec().clone();
+    
+//     // Urutkan descending (terbesar ke terkecil)
+//     initial_eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+
+
+//     // B. HITUNG EXTRACTION EIGENVALUES (K BARIS)
+//     // Ini diambil dari hasil ekstraksi (PCA/ULS/PAF) yang mungkin sudah dipotong (truncated)
+//     let extraction_result = extract_factors(&matrix, config, &var_names)?;
+//     let extraction_eigenvalues = extraction_result.eigenvalues; // Ini panjangnya = n_factors (k)
+
+
+//     // 4. Hitung Total Variance yang Valid (Denominator)
+//     let total_variance: f64 = if is_covariance {
+//         // Untuk Covariance: Total variance adalah jumlah semua INITIAL eigenvalues
+//         initial_eigenvalues.iter().sum()
+//     } else {
+//         // Untuk Correlation: Total variance = jumlah variabel
+//         n_variables as f64
+//     };
+
+//     // 5. Generate Struktur Laporan
+//     // Kita kirim dua vektor berbeda: initial (panjang N) dan extraction (panjang k)
+//     Ok(calculate_total_variance_explained(
+//         &initial_eigenvalues,
+//         &extraction_eigenvalues,
+//         total_variance,
+//         n_variables,
+//         matrix_type,
+//     ))
+// }
+
+
 pub fn calculate_total_variance_explained_from_data(
     data: &AnalysisData,
     config: &FactorAnalysisConfig,
@@ -363,75 +275,61 @@ pub fn calculate_total_variance_explained_from_data(
     let matrix_type = if is_covariance {
         "covariance"
     } else {
-        "correlation" // Default ke correlation jika tidak spesifik
+        "correlation"
     };
 
     // 3. Hitung Matriks (R atau S)
     let matrix = calculate_matrix(&data_matrix, matrix_type)?;
 
-    // 4. Lakukan Ekstraksi Faktor untuk mendapatkan Eigenvalues
-    // Note: extract_factors di file factor_extraction.rs sudah mengembalikan 'all_eigenvalues'
-    // yang kita butuhkan untuk tabel Total Variance.
+    // =====================================================
+    // STEP A: HITUNG INITIAL EIGENVALUES (SELALU FULL N)
+    // =====================================================
+    // Kita hitung eigen decomposition manual dari matriks korelasi/kovariansi awal
+    // agar selalu mendapatkan N eigenvalues untuk kolom "Initial Eigenvalues".
+    let eigen_decomp = matrix.clone().symmetric_eigen();
+    let mut initial_eigenvalues: Vec<f64> = eigen_decomp.eigenvalues.data.as_vec().clone();
+    
+    // Urutkan dari terbesar ke terkecil (Descending)
+    initial_eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+
+
+    // =====================================================
+    // STEP B: HITUNG EXTRACTION EIGENVALUES (FILTERED)
+    // =====================================================
     let extraction_result = extract_factors(&matrix, config, &var_names)?;
 
-    // 5. Hitung Total Variance yang Valid
+    // PERBAIKAN DI SINI:
+    // PCA menghasilkan eigenvalues sebanyak variabel (misal 8).
+    // Tapi kita hanya ingin menampilkan di kolom "Extraction" sebanyak faktor yang valid (n_factors).
+    // extraction_result.n_factors adalah jumlah faktor yang lolos kriteria (misal Eigenvalue > 1).
+    
+    let k = extraction_result.n_factors;
+    
+    // Safety check: Pastikan k tidak melebihi panjang vektor yang tersedia
+    let limit = std::cmp::min(k, extraction_result.eigenvalues.len());
+    
+    // Ambil hanya 'limit' pertama untuk kolom Extraction
+    let extraction_eigenvalues = extraction_result.eigenvalues[0..limit].to_vec();
+
+
+    // 4. Hitung Total Variance (Denominator)
     let total_variance: f64 = if is_covariance {
-        // Untuk Covariance: Total variance adalah jumlah semua eigenvalues
-        extraction_result.eigenvalues.iter().sum()
+        // Untuk Covariance: Total variance adalah jumlah semua INITIAL eigenvalues
+        initial_eigenvalues.iter().sum()
     } else {
-        // Untuk Correlation: Total variance sama dengan jumlah variabel (diagonal 1.0)
+        // Untuk Correlation: Total variance sama dengan jumlah variabel
         n_variables as f64
     };
 
-    // 6. Generate Struktur Laporan
-    // Kita menggunakan eigenvalues dari hasil ekstraksi barusan
+    // 5. Generate Struktur Laporan
     Ok(calculate_total_variance_explained(
-        &extraction_result.eigenvalues,
+        &initial_eigenvalues,    // Tampilkan Semua (Kiri)
+        &extraction_eigenvalues, // Tampilkan yang Diekstrak Saja (Tengah)
         total_variance,
         n_variables,
         matrix_type,
     ))
 }
-
-
-// pub fn calculate_component_matrix(
-//     data: &AnalysisData,
-//     config: &FactorAnalysisConfig
-// ) -> Result<ComponentMatrix, String> {
-//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
-
-//     // Determine matrix type based on config (covariance vs correlation)
-//     let matrix_type = if config.extraction.covariance {
-//         "covariance"
-//     } else if config.extraction.correlation {
-//         "correlation"
-//     } else {
-//         "correlation" // Default to correlation if neither is explicitly set
-//     };
-
-//     let matrix = calculate_matrix(&data_matrix, matrix_type)?;
-//     let extraction_result = extract_factors(&matrix, config, &var_names)?;
-
-//     let mut components = HashMap::new();
-
-//     for (i, var_name) in var_names.iter().enumerate() {
-//         if i < extraction_result.loadings.nrows() {
-//             let mut loadings = Vec::with_capacity(extraction_result.n_factors);
-
-//             for j in 0..extraction_result.n_factors {
-//                 loadings.push(extraction_result.loadings[(i, j)]);
-//             }
-
-//             components.insert(var_name.clone(), loadings);
-//         }
-//     }
-
-//     Ok(ComponentMatrix {
-//         components,
-//         variable_order: var_names,
-//     })
-// }
-
 
 
 // perbaikan 16/1/2026
@@ -667,9 +565,6 @@ pub fn calculate_scree_plot(
 }
 
 //  perbaikan 16/1/2026
-
-// Pastikan import ini ada di bagian atas file
-// use crate::models::config::RotationMethod; 
 
 pub fn calculate_component_score_coefficient_matrix(
     data: &AnalysisData,
@@ -1186,9 +1081,3 @@ pub fn create_component_correlation_matrix(
         correlations,
     }
 }
-
-
-
-
-
-

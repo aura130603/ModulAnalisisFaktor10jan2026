@@ -337,12 +337,18 @@ import {ResultJson, Table} from "@/types/Table";
     if (data.communalities) {
         const isCovariance = data.communalities.extraction_matrix_type === "covariance";
 
-        // kasih judul kolom sesuai pilihan matrix extraxtionnya berdasarkan apa? apakah correlation atau covariance
         const columnHeaders: any = [{ header: "", key: "var" }];
+        
         if (isCovariance) {
+            // Jika Covariance: Tampilkan Raw dan Rescaled
             columnHeaders.push({ header: "Raw Initial", key: "raw_initial" });
+            columnHeaders.push({ header: "Rescaled Initial", key: "rescaled_initial" });
+        } else {
+            // Jika Correlation (ULS Default): Hanya tampilkan "Initial"
+            // Kita menggunakan key 'rescaled_initial' karena di Rust data dikirim ke field tersebut
+            columnHeaders.push({ header: "Initial", key: "rescaled_initial" });
         }
-        columnHeaders.push({ header: "Rescaled Initial", key: "rescaled_initial" });
+        
         columnHeaders.push({ header: "Extraction", key: "extraction" });
 
         const table: Table = {
@@ -403,185 +409,13 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add extraction method note
         const noteRow: any = {
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: Principal Component Analysis.`], // Note: String ini bisa dibuat dinamis berdasarkan config jika ada
         };
-        if (isCovariance) {
-            noteRow.raw_initial = null;
-        }
-        noteRow.rescaled_initial = null;
-        noteRow.extraction = null;
-
+        
         table.rows.push(noteRow);
 
         resultJson.tables.push(table);
     }
-
-    
-
-    // // 7. Total Variance Explained (REVISI KHUSUS COVARIANCE & CORRELATION)
-    // if (data.total_variance_explained) {
-    //     try {
-    //         // Normalisasi data menjadi array blocks
-    //         const varianceBlocks = Array.isArray(data.total_variance_explained)
-    //             ? data.total_variance_explained
-    //             : [["Total", data.total_variance_explained]];
-
-    //         // Cek apakah ini Covariance (biasanya memiliki label 'Raw' atau 'Rescaled')
-    //         const isCovariance = varianceBlocks.some((block: any) => {
-    //             const label = Array.isArray(block) ? block[0] : (block.matrix_type || "");
-    //             return label === "Raw" || label === "Rescaled";
-    //         });
-
-    //         if (isCovariance) {
-    //             // === LOGIKA KHUSUS COVARIANCE (Output Gabungan Raw & Rescaled) ===
-                
-    //             const table: Table = {
-    //                 key: "total_variance_explained",
-    //                 title: "Total Variance Explained",
-    //                 columnHeaders: [
-    //                     { header: "", key: "group_label" }, // Kolom untuk label "Raw" / "Rescaled"
-    //                     { header: "Component", key: "component" },
-    //                     // SPSS Covariance headers lebih sederhana
-    //                     { header: "Total", key: "total" },
-    //                     { header: "% of Variance", key: "percent_var" },
-    //                     { header: "Cumulative %", key: "cumulative_percent" }
-    //                 ],
-    //                 rows: [],
-    //             };
-
-    //             // Iterasi setiap blok (Raw, lalu Rescaled) dan gabungkan ke satu tabel
-    //             varianceBlocks.forEach((block: any) => {
-    //                 const [blockLabel, blockData] = Array.isArray(block) ? block : [block.matrix_type || "Total", block];
-
-    //                 if (!blockData || !blockData.initial || !blockData.initial.rows) return;
-
-    //                 const numRows = blockData.initial.rows.length;
-
-    //                 for (let i = 0; i < numRows; i++) {
-    //                     const rowData: any = {
-    //                         // Tampilkan Label Grup hanya pada baris pertama setiap blok
-    //                         group_label: i === 0 ? blockLabel : "", 
-    //                         rowHeader: [], // Kosongkan rowHeader default (Wajib ada untuk TS)
-    //                         component: (i + 1).toString(),
-    //                     };
-
-    //                     // Data Initial (Total, %, Cum %)
-    //                     const rowValues = blockData.initial.rows[i];
-    //                     if (rowValues) {
-    //                         rowData["total"] = formatDisplayNumber(rowValues[0]);
-    //                         rowData["percent_var"] = formatDisplayNumber(rowValues[1]);
-    //                         rowData["cumulative_percent"] = formatDisplayNumber(rowValues[2]);
-    //                     }
-
-    //                     table.rows.push(rowData);
-    //                 }
-    //             });
-
-    //             // Tambahkan catatan kaki khusus Covariance (FIX: Menambahkan rowHeader: [])
-    //             table.rows.push({
-    //                 rowHeader: [], // <--- FIX ERROR TYPESCRIPT DISINI
-    //                 group_label: "Extraction Method: Principal Component Analysis.",
-    //                 component: "", total: "", percent_var: "", cumulative_percent: ""
-    //             });
-                
-    //             table.rows.push({
-    //                 rowHeader: [], // <--- FIX ERROR TYPESCRIPT DISINI
-    //                 group_label: "a. When analyzing a covariance matrix, the initial eigenvalues are the same across the raw and rescaled solution.",
-    //                 component: "", total: "", percent_var: "", cumulative_percent: ""
-    //             });
-
-    //             resultJson.tables.push(table);
-
-    //         } else {
-    //             // === LOGIKA STANDAR CORRELATION ===
-                
-    //             // Ambil blok pertama saja karena correlation biasanya single block
-    //             const block = varianceBlocks[0];
-    //             const [blockLabel, blockData] = Array.isArray(block) ? block : [block.matrix_type || "Total", block];
-
-    //             const table: Table = {
-    //                 key: "total_variance_explained",
-    //                 title: "Total Variance Explained",
-    //                 columnHeaders: [
-    //                     { header: "Component", key: "component" },
-    //                     {
-    //                         header: "Initial Eigenvalues",
-    //                         key: "initial_eigenvalues",
-    //                         children: blockData.initial.headers.map((header: string, idx: number) => ({
-    //                             header,
-    //                             key: `initial_${idx}`,
-    //                         })),
-    //                     },
-    //                 ],
-    //                 rows: [],
-    //             };
-
-    //             // Add extraction columns header
-    //             if (blockData.extraction && blockData.extraction.rows && blockData.extraction.rows.length > 0) {
-    //                 table.columnHeaders.push({
-    //                     header: "Extraction Sums of Squared Loadings",
-    //                     key: "extraction_sums",
-    //                     children: blockData.extraction.headers.map((header: string, idx: number) => ({
-    //                         header,
-    //                         key: `extraction_${idx}`,
-    //                     })),
-    //                 });
-    //             }
-
-    //             // Add rotation columns header
-    //             if (blockData.rotation && blockData.rotation.rows && blockData.rotation.rows.length > 0) {
-    //                 table.columnHeaders.push({
-    //                     header: "Rotation Sums of Squared Loadings",
-    //                     key: "rotation_sums",
-    //                     children: blockData.rotation.headers.map((header: string, idx: number) => ({
-    //                         header,
-    //                         key: `rotation_${idx}`,
-    //                     })),
-    //                 });
-    //             }
-
-    //             // Build Rows
-    //             const numComponents = blockData.initial.rows.length;
-    //             for (let i = 0; i < numComponents; i++) {
-    //                 const rowData: any = {
-    //                     rowHeader: [(i + 1).toString()], // Component number as header
-    //                 };
-
-    //                 // Initial
-    //                 blockData.initial.rows[i].forEach((val: number, idx: number) => {
-    //                     rowData[`initial_${idx}`] = formatDisplayNumber(val);
-    //                 });
-
-    //                 // Extraction
-    //                 if (blockData.extraction && blockData.extraction.rows[i]) {
-    //                     blockData.extraction.rows[i].forEach((val: number, idx: number) => {
-    //                         rowData[`extraction_${idx}`] = formatDisplayNumber(val);
-    //                     });
-    //                 }
-
-    //                 // Rotation
-    //                 if (blockData.rotation && blockData.rotation.rows[i]) {
-    //                     blockData.rotation.rows[i].forEach((val: number, idx: number) => {
-    //                         rowData[`rotation_${idx}`] = formatDisplayNumber(val);
-    //                     });
-    //                 }
-
-    //                 table.rows.push(rowData);
-    //             }
-                
-    //             table.rows.push({
-    //                 rowHeader: ["Extraction Method: Principal Component Analysis."],
-    //             });
-
-    //             resultJson.tables.push(table);
-    //         }
-
-    //     } catch (error) {
-    //         console.error("Error processing total_variance_explained:", error);
-    //     }
-    // }
-
-
 
     // 7. Total Variance Explained (REVISI KHUSUS COVARIANCE & CORRELATION)
     if (data.total_variance_explained) {
@@ -605,8 +439,8 @@ import {ResultJson, Table} from "@/types/Table";
                     title: "Total Variance Explained",
                     columnHeaders: [
                         // Kolom untuk label "Raw" / "Rescaled" dengan lebar tetap agar tidak terlalu lebar
-                        { header: "", key: "group_label", width: "120px" }, 
-                        { header: "Component", key: "component" },
+                        { header: "", key: "group_label" }, 
+                        { header: "Component", key: "component", width: "auto" },
                         // SPSS Covariance headers lebih sederhana (hanya Initial Eigenvalues)
                         { header: "Total", key: "total" },
                         { header: "% of Variance", key: "percent_var" },
@@ -645,17 +479,17 @@ import {ResultJson, Table} from "@/types/Table";
 
                 // Tambahkan catatan kaki khusus Covariance
                 // FIX: Menambahkan properti rowHeader: [] agar sesuai interface 'Row'
-                table.rows.push({
-                    rowHeader: [], // <--- FIX ERROR TYPESCRIPT
-                    group_label: "Extraction Method: Principal Component Analysis.",
-                    component: "", total: "", percent_var: "", cumulative_percent: ""
-                });
+                // table.rows.push({
+                //     rowHeader: [], // <--- FIX ERROR TYPESCRIPT
+                //     group_label: "Extraction Method: Principal Component Analysis.",
+                //     component: "", total: "", percent_var: "", cumulative_percent: ""
+                // });
                 
-                table.rows.push({
-                    rowHeader: [], // <--- FIX ERROR TYPESCRIPT
-                    group_label: "a. When analyzing a covariance matrix, the initial eigenvalues are the same across the raw and rescaled solution.",
-                    component: "", total: "", percent_var: "", cumulative_percent: ""
-                });
+                // table.rows.push({
+                //     rowHeader: [], // <--- FIX ERROR TYPESCRIPT
+                //     group_label: "a. When analyzing a covariance matrix, the initial eigenvalues are the same across the raw and rescaled solution.",
+                //     component: "", total: "", percent_var: "", cumulative_percent: ""
+                // });
 
                 resultJson.tables.push(table);
 
@@ -682,6 +516,9 @@ import {ResultJson, Table} from "@/types/Table";
                     ],
                     rows: [],
                 };
+                
+
+                
 
                 // Add extraction columns header if exists
                 if (blockData.extraction?.rows?.length > 0) {

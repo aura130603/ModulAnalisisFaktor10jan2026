@@ -1,6 +1,5 @@
 // perbaikan bisa (9/1/2026)
 
-
 use wasm_bindgen::JsValue;
 use serde::Serialize;
 use crate::models::result::{

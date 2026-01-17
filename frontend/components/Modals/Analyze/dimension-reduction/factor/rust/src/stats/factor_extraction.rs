@@ -376,29 +376,6 @@ fn extract_factors_from_adjusted_matrix(
     })
 }
 
-// Determine number of factors to retain - no change needed
-// pub fn determine_factors_to_retain(eigenvalues: &[f64], config: &FactorAnalysisConfig) -> usize {
-//     if let Some(max_factors) = config.extraction.max_factors {
-//         let max = max_factors as usize;
-//         if max > 0 && max <= eigenvalues.len() {
-//             return max;
-//         }
-//     }
-
-//     // Use eigenvalue criterion (Kaiser criterion by default)
-//     let eigen_cutoff = config.extraction.eigen_val;
-//     let count = eigenvalues
-//         .iter()
-//         .take_while(|&&val| val >= eigen_cutoff)
-//         .count();
-
-//     if count == 0 {
-//         1 // Always retain at least one factor
-//     } else {
-//         count
-//     }
-// }
-
 
 
 // perbaikan bisa 14/01/2026
@@ -458,7 +435,10 @@ pub fn determine_factors_to_retain(eigenvalues: &[f64], config: &FactorAnalysisC
 }
 
 
-// Unweighted Least Squares extraction
+
+
+// Unweighted Least Squares extraction - Fixed for Heywood Cases (SPSS Match)
+
 pub fn extract_unweighted_least_squares(
     matrix: &DMatrix<f64>,
     config: &FactorAnalysisConfig,
@@ -466,30 +446,58 @@ pub fn extract_unweighted_least_squares(
 ) -> Result<ExtractionResult, String> {
     let n_vars = matrix.nrows();
 
-    // Initial communality estimates
-    let mut communalities = vec![0.5; n_vars]; // Initialize with 0.5
+    // 1. Initial Estimates: SMC
+    let mut communalities = vec![0.0; n_vars];
+    match matrix.clone().try_inverse() {
+        Some(inv) => {
+            for i in 0..n_vars {
+                let r_ii = inv[(i, i)];
+                if r_ii > 0.0 {
+                    communalities[i] = 1.0 - 1.0 / r_ii;
+                } else {
+                    communalities[i] = 0.5; 
+                }
+                
+                // Safety clamp untuk initial
+                if communalities[i] > 0.999 { communalities[i] = 0.999; }
+                if communalities[i] < 0.0 { communalities[i] = 0.001; }
+            }
+        },
+        None => {
+            for i in 0..n_vars {
+                let mut max_r = 0.0;
+                for j in 0..n_vars {
+                    if i != j {
+                        let r_ij = matrix[(i, j)].abs();
+                        if r_ij > max_r { max_r = r_ij; }
+                    }
+                }
+                communalities[i] = max_r;
+            }
+        }
+    };
+
     let mut r_matrix = matrix.clone();
+    
+    // --- PERUBAHAN DI SINI ---
+    // Pastikan iterasi cukup banyak
+    let user_max = config.extraction.max_iter as usize;
+    let max_iterations = if user_max < 200 { 200 } else { user_max }; 
+    
+    // Perketat kriteria konvergensi (1e-5) agar presisi desimal ke-3 lebih akurat
+    let convergence_criterion = 0.00001; 
+    // -------------------------
 
-    // Update diagonal with initial communalities
-    for i in 0..n_vars {
-        r_matrix[(i, i)] = communalities[i];
-    }
-
-    // Iterative solution for communalities
-    let max_iterations = config.extraction.max_iter as usize;
-    let convergence_criterion = 0.001;
-
-    for iteration in 0..max_iterations {
-        // Calculate reduced correlation matrix R - diagonal(uniqueness)
+    for _ in 0..max_iterations {
+        // 2. Reduced Correlation Matrix
         let mut reduced_matrix = r_matrix.clone();
         for i in 0..n_vars {
-            reduced_matrix[(i, i)] = r_matrix[(i, i)] - (1.0 - communalities[i]);
+            reduced_matrix[(i, i)] = communalities[i];
         }
 
-        // Perform eigenvalue decomposition on reduced matrix
+        // 3. Eigen Decomposition
         let eigen = reduced_matrix.symmetric_eigen();
 
-        // Sort eigenvalues and eigenvectors
         let mut indices: Vec<usize> = (0..n_vars).collect();
         indices.sort_by(|&i, &j|
             eigen.eigenvalues[j]
@@ -499,7 +507,7 @@ pub fn extract_unweighted_least_squares(
 
         let sorted_eigenvalues: Vec<f64> = indices
             .iter()
-            .map(|&i| eigen.eigenvalues[i].max(0.0)) // Ensure non-negative
+            .map(|&i| eigen.eigenvalues[i])
             .collect();
 
         let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
@@ -509,13 +517,14 @@ pub fn extract_unweighted_least_squares(
             }
         }
 
-        // Determine number of factors
-        let n_factors = determine_factors_to_retain(&sorted_eigenvalues, config);
+        let positive_eigenvalues: Vec<f64> = sorted_eigenvalues.iter().cloned().map(|x| x.max(0.0)).collect();
+        let n_factors = determine_factors_to_retain(&positive_eigenvalues, config);
+        
         if n_factors == 0 {
             return Err("No factors meet the retention criteria".to_string());
         }
 
-        // Calculate new communality estimates - ULS specific formula
+        // 4. Hitung Communalities Baru
         let mut new_communalities = vec![0.0; n_vars];
         for i in 0..n_vars {
             for j in 0..n_factors {
@@ -524,9 +533,18 @@ pub fn extract_unweighted_least_squares(
                         sorted_eigenvalues[j] * sorted_eigenvectors[(i, j)].powi(2);
                 }
             }
+
+            // HEYWOOD CASE CLAMPING
+            // Batasi tepat di bawah 1.0 seperti SPSS
+            if new_communalities[i] >= 0.9999 {
+                new_communalities[i] = 0.9999;
+            }
+            if new_communalities[i] < 0.0 {
+                new_communalities[i] = 0.0;
+            }
         }
 
-        // Check for convergence
+        // 5. Cek Konvergensi
         let mut max_change = 0.0;
         for i in 0..n_vars {
             let change = (new_communalities[i] - communalities[i]).abs();
@@ -535,58 +553,103 @@ pub fn extract_unweighted_least_squares(
             }
         }
 
-        if max_change < convergence_criterion {
-            // Converged, calculate final loadings
-            let mut loadings = DMatrix::zeros(n_vars, n_factors);
-            for i in 0..n_vars {
-                for j in 0..n_factors {
-                    if sorted_eigenvalues[j] > 0.0 {
-                        loadings[(i, j)] =
-                            sorted_eigenvectors[(i, j)] * sorted_eigenvalues[j].sqrt();
-                    }
-                }
-            }
-
-            // Calculate explained variance
-            let total_variance: f64 = sorted_eigenvalues.iter().take(n_vars).sum();
-            let explained_variance: Vec<f64> = sorted_eigenvalues
-                .iter()
-                .take(n_factors)
-                .map(|&val| (val / total_variance) * 100.0)
-                .collect();
-
-            // Calculate cumulative variance
-            let mut cumulative_variance = vec![0.0; n_factors];
-            let mut cum_sum = 0.0;
-            for (i, &var) in explained_variance.iter().enumerate() {
-                cum_sum += var;
-                cumulative_variance[i] = cum_sum;
-            }
-
-            return Ok(ExtractionResult {
-                loadings,
-                eigenvalues: sorted_eigenvalues.into_iter().take(n_factors).collect(),
-                communalities: new_communalities,
-                explained_variance,
-                cumulative_variance,
-                n_factors,
-                var_names: var_names.to_vec(),
-            });
-        }
-
-        // Update communalities for next iteration
+        // Update communalities
         communalities = new_communalities;
 
-        // Update diagonal of correlation matrix
-        for i in 0..n_vars {
-            r_matrix[(i, i)] = 1.0; // Reset diagonal to 1.0 for ULS
+        if max_change < convergence_criterion {
+            return calculate_final_result(
+                n_vars, 
+                n_factors, 
+                &sorted_eigenvalues, 
+                &sorted_eigenvectors, 
+                communalities, 
+                var_names
+            );
         }
     }
 
-    // If we reach here, we've hit the maximum iterations without converging
-    // Return a result with the current estimates
-    Err("ULS extraction failed to converge within the maximum iterations".to_string())
+    // Pass terakhir jika max iteration tercapai
+    let mut reduced_matrix = r_matrix.clone();
+    for i in 0..n_vars {
+        reduced_matrix[(i, i)] = communalities[i];
+    }
+    let eigen = reduced_matrix.symmetric_eigen();
+    
+    let mut indices: Vec<usize> = (0..n_vars).collect();
+    indices.sort_by(|&i, &j|
+        eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i]).unwrap_or(std::cmp::Ordering::Equal)
+    );
+    let sorted_eigenvalues: Vec<f64> = indices.iter().map(|&i| eigen.eigenvalues[i]).collect();
+    let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
+    for i in 0..n_vars {
+        for j in 0..n_vars {
+            sorted_eigenvectors[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+        }
+    }
+
+    let positive_eigenvalues: Vec<f64> = sorted_eigenvalues.iter().cloned().map(|x| x.max(0.0)).collect();
+    let n_factors = determine_factors_to_retain(&positive_eigenvalues, config);
+
+    calculate_final_result(
+        n_vars, 
+        n_factors, 
+        &sorted_eigenvalues, 
+        &sorted_eigenvectors, 
+        communalities, 
+        var_names
+    )
 }
+
+// Helper function untuk menghindari duplikasi kode saat return
+fn calculate_final_result(
+    n_vars: usize,
+    n_factors: usize,
+    sorted_eigenvalues: &[f64],
+    sorted_eigenvectors: &DMatrix<f64>,
+    communalities: Vec<f64>,
+    var_names: &[String]
+) -> Result<ExtractionResult, String> {
+    let mut loadings = DMatrix::zeros(n_vars, n_factors);
+    for i in 0..n_vars {
+        for j in 0..n_factors {
+            if sorted_eigenvalues[j] > 0.0 {
+                loadings[(i, j)] =
+                    sorted_eigenvectors[(i, j)] * sorted_eigenvalues[j].sqrt();
+            }
+        }
+    }
+
+    let total_variance: f64 = sorted_eigenvalues.iter().take(n_vars).filter(|&&x| x > 0.0).sum();
+    
+    let explained_variance: Vec<f64> = sorted_eigenvalues
+        .iter()
+        .take(n_factors)
+        .map(|&val| if val > 0.0 && total_variance > 0.0 { 
+            (val / total_variance) * 100.0 
+        } else { 
+            0.0 
+        })
+        .collect();
+
+    let mut cumulative_variance = vec![0.0; n_factors];
+    let mut cum_sum = 0.0;
+    for (i, &var) in explained_variance.iter().enumerate() {
+        cum_sum += var;
+        cumulative_variance[i] = cum_sum;
+    }
+
+    Ok(ExtractionResult {
+        loadings,
+        eigenvalues: sorted_eigenvalues.to_vec().into_iter().take(n_factors).collect(),
+        communalities,
+        explained_variance,
+        cumulative_variance,
+        n_factors,
+        var_names: var_names.to_vec(),
+    })
+}
+
+
 
 // Generalized Least Squares extraction
 pub fn extract_generalized_least_squares(
