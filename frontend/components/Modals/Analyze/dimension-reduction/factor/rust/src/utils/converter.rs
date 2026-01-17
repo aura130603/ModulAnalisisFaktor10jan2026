@@ -58,6 +58,7 @@ struct FormatResult {
     component_correlation_matrix: Option<ComponentCorrelationMatrix>,
     component_score_coefficient_matrix: Option<FormattedComponentScoreCoefficient>,
     component_score_covariance_matrix: Option<ComponentScoreCovarianceMatrix>,
+    factor_scores: Option<Vec<ScoreColumn>>,
     loading_plot: Option<LoadingPlot>,
 }
 
@@ -166,6 +167,13 @@ struct FormattedStructureMatrix {
 #[derive(Serialize)]
 struct FormattedComponentScoreCoefficient {
     components: Vec<ComponentEntry>,
+}
+
+// STRUCT BARU UNTUK FORMAT SKOR
+#[derive(Serialize)]
+struct ScoreColumn {
+    variable_name: String, // misal: "FAC1_1"
+    values: Vec<f64>,      // nilai per baris
 }
 
 impl FormatResult {
@@ -688,6 +696,20 @@ impl FormatResult {
 });
 
 
+    // MAPPING FACTOR SCORES
+        let factor_scores = result.factor_scores.as_ref().map(|scores| {
+            // Sort keys agar urutan FAC1_1, FAC2_1 rapi
+            let mut keys: Vec<&String> = scores.keys().collect();
+            keys.sort(); 
+
+            keys.iter().map(|k| {
+                ScoreColumn {
+                    variable_name: k.to_string(),
+                    values: scores.get(*k).unwrap().clone(),
+                }
+            }).collect()
+        });
+
         FormatResult {
             descriptive_statistics: result.descriptive_statistics.clone(),
             scree_plot: result.scree_plot.clone(),
@@ -710,6 +732,7 @@ impl FormatResult {
             component_correlation_matrix: result.component_correlation_matrix.clone(),
             component_score_coefficient_matrix,
             component_score_covariance_matrix: result.component_score_covariance_matrix.clone(),
+            factor_scores,
             loading_plot: result.loading_plot.clone(),
         }
     }

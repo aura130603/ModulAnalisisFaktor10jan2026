@@ -8,5 +8,6 @@ export type FactorAnalysisType = {
 };
 
 export type FactorFinalResultType = {
-    formattedResult: ResultJson;
+    formattedResult: ResultJson & { factorScores?: any[] };
+    configData: FactorType;
 };

@@ -319,7 +319,7 @@ pub fn calculate_inverse_covariance_matrix(
 }
 
 // Fungsi utilitas untuk menghitung rata-rata kolom
-fn calculate_mean(data: &DMatrix<f64>, col_index: usize) -> f64 {
+pub fn calculate_mean(data: &DMatrix<f64>, col_index: usize) -> f64 {
     let n_rows = data.nrows();
     let sum: f64 = (0..n_rows)
         .map(|r| data[(r, col_index)])
@@ -410,4 +410,23 @@ pub fn calculate_anti_image_matrices(
         anti_image_correlation,
         variable_order: var_names,
     })
+}
+
+
+/// Menghitung standar deviasi sampel untuk kolom tertentu
+pub fn calculate_std_dev(data: &DMatrix<f64>, col_index: usize) -> f64 {
+    let n_rows = data.nrows();
+    if n_rows < 2 {
+        return 0.0;
+    }
+    
+    let mean = calculate_mean(data, col_index);
+    let mut sum_sq_diff = 0.0;
+
+    for r in 0..n_rows {
+        let diff = data[(r, col_index)] - mean;
+        sum_sq_diff += diff.powi(2);
+    }
+
+    (sum_sq_diff / (n_rows as f64 - 1.0)).sqrt()
 }

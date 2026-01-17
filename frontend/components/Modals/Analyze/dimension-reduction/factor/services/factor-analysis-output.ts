@@ -3,9 +3,12 @@
 import {FactorFinalResultType} from "@/components/Modals/Analyze/dimension-reduction/factor/types/factor-worker";
 import {Table} from "@/types/Table";
 import {useResultStore} from "@/stores/useResultStore";
+import {useDataStore, ColumnData} from "@/stores/useDataStore";
+import {useVariableStore} from "@/stores/useVariableStore";
 
 export async function resultFactorAnalysis({
     formattedResult,
+    configData,
 }: FactorFinalResultType) {
     try {
         const { addLog, addAnalytic, addStatistic } = useResultStore.getState();
@@ -494,6 +497,55 @@ if (loadingPlotDataRaw) {
         };
 
         await factorAnalysisResult();
+
+        /*
+         * 📊 Save Factor Scores as Variables (Save as Variables Logic) 📊
+         * */
+        if (configData.scores.SaveVar && formattedResult.factorScores && formattedResult.factorScores.length > 0) {
+            try {
+                console.log("Injecting factor scores into data grid...", formattedResult.factorScores);
+
+                // Get stores
+                const dataStore = useDataStore.getState();
+                const variableStore = useVariableStore.getState();
+
+                // Convert factor scores to ColumnData format
+                const columnDataList: ColumnData[] = formattedResult.factorScores.map((score: any) => ({
+                    variable_name: score.variable_name,
+                    values: score.values,
+                }));
+
+                // Step 1: Inject data values into the grid
+                const { startColumnIndex, endColumnIndex } = await dataStore.addVariableColumns(columnDataList);
+
+                // Step 2: Register variable metadata WITHOUT manipulating the data structure
+                // This prevents column shifting and ensures proper header/data alignment
+                if (startColumnIndex >= 0 && endColumnIndex >= 0) {
+                    const newVariablesData = columnDataList.map((column, index) => ({
+                        columnIndex: startColumnIndex + index,
+                        name: column.variable_name,
+                        type: 'NUMERIC' as const,
+                        width: 8,
+                        decimals: 2,
+                        label: `Factor Score: ${column.variable_name}`,
+                        values: [],
+                        missing: null,
+                        columns: 8,
+                        align: 'right' as const,
+                        measure: 'scale' as const,
+                        role: 'input' as const,
+                    }));
+
+                    // Use registerVariableMetadata instead of addVariables to avoid column shifting
+                    // registerVariableMetadata only updates the metadata, preserving the data structure
+                    await variableStore.registerVariableMetadata(newVariablesData);
+
+                    console.log(`Successfully added ${newVariablesData.length} factor score columns to the data grid with proper headers`);
+                }
+            } catch (error) {
+                console.error("Failed to inject factor scores into data grid:", error);
+            }
+        }
     } catch (e) {
         console.error(e);
     }

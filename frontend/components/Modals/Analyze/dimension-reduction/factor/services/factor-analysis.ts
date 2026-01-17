@@ -88,6 +88,7 @@ export async function analyzeFactor({
          * */
         await resultFactorAnalysis({
             formattedResult: formattedResults ?? [],
+            configData,
         });
     } catch (error) {
         console.error("Error in analyzeFactor:", error);

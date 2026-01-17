@@ -41,6 +41,10 @@ pub struct FactorAnalysisResult {
     pub component_score_coefficient_matrix: Option<ComponentScoreCoefficientMatrix>,
     #[serde(rename = "component_score_covariance_matrix")]
     pub component_score_covariance_matrix: Option<ComponentScoreCovarianceMatrix>,
+    /// Menyimpan nilai skor faktor per responden (misal: FAC1_1, FAC2_1)
+    /// Key: Nama Variabel Baru (String), Value: Array nilai untuk semua baris (Vec<f64>)
+    #[serde(rename = "factor_scores")]
+    pub factor_scores: Option<HashMap<String, Vec<f64>>>,
     #[serde(rename = "pattern_matrix")]
     pub pattern_matrix: Option<PatternMatrix>,
     #[serde(rename = "structure_matrix")]
@@ -136,18 +140,6 @@ pub struct Communalities {
     pub extraction_matrix_type: String, // "correlation" or "covariance"
 }
 
-// #[derive(Debug, Serialize, Deserialize, Clone)]
-// pub struct TotalVarianceExplained {
-//     #[serde(rename = "initial_eigenvalues")]
-//     pub initial_eigenvalues: Vec<TotalVarianceComponent>,
-//     #[serde(rename = "extraction_sums")]
-//     pub extraction_sums: Vec<TotalVarianceComponent>,
-//     #[serde(rename = "rotation_sums")]
-//     pub rotation_sums: Vec<TotalVarianceComponent>,
-//     // Track which matrix type was used for extraction
-//     #[serde(rename = "extraction_matrix_type")]
-//     pub extraction_matrix_type: String, // "correlation" or "covariance"
-// }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TotalVarianceBlock {

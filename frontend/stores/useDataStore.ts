@@ -17,6 +17,11 @@ export type DataStoreError = {
     originalError?: any;
 };
 
+export interface ColumnData {
+    variable_name: string;
+    values: (string | number | null)[];
+}
+
 export interface DataStoreState {
     data: DataRow[];
     isLoading: boolean;
@@ -54,9 +59,11 @@ export interface DataStoreState {
 
     ensureColumns: (targetColIndex: number) => Promise<void>;
     checkAndSave: () => Promise<void>;
+
+    addVariableColumns: (newColumns: ColumnData[]) => Promise<{ startColumnIndex: number; endColumnIndex: number }>;
 }
 
-const initialState: Omit<DataStoreState, 'loadData' | 'resetData' | 'updateCell' | 'updateCells' | 'setData' | 'saveData' | 'addRow' | 'addRows' | 'deleteRow' | 'deleteRows' | 'sortData' | 'getVariableData' | 'validateVariableData' | 'ensureColumns' | 'checkAndSave'> = {
+const initialState: Omit<DataStoreState, 'loadData' | 'resetData' | 'updateCell' | 'updateCells' | 'setData' | 'saveData' | 'addRow' | 'addRows' | 'deleteRow' | 'deleteRows' | 'sortData' | 'getVariableData' | 'validateVariableData' | 'ensureColumns' | 'checkAndSave' | 'addVariableColumns'> = {
     data: [],
     isLoading: false,
     error: null,
@@ -427,7 +434,56 @@ export const useDataStore = create<DataStoreState>()(
                         }
                     }
                 },
+
+                addVariableColumns: async (newColumns) => {
+                    if (!newColumns || newColumns.length === 0) {
+                        return { startColumnIndex: -1, endColumnIndex: -1 };
+                    }
+
+                    const startColumnIndex = get().data.length > 0 ? (get().data[0]?.length ?? 0) : 0;
+                    let endColumnIndex = startColumnIndex - 1;
+
+                    set((state) => {
+                        const currentData = state.data;
+                        const rowCount = currentData.length;
+
+                        // Iterate through each new column and inject values into the data
+                        newColumns.forEach((column, columnOffset) => {
+                            const columnIndex = startColumnIndex + columnOffset;
+                            endColumnIndex = columnIndex;
+
+                            // Ensure all rows have enough columns
+                            for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
+                                if (!currentData[rowIdx]) {
+                                    currentData[rowIdx] = [];
+                                }
+                                // Ensure the row has enough cells up to this column
+                                while (currentData[rowIdx].length <= columnIndex) {
+                                    currentData[rowIdx].push("");
+                                }
+                                // Inject the value from the column data
+                                const value = column.values[rowIdx] ?? "";
+                                currentData[rowIdx][columnIndex] = value;
+                            }
+                        });
+
+                        state.data = currentData;
+                        state.lastUpdated = new Date();
+                        state.hasUnsavedChanges = true;
+                    });
+
+                    // Automatically save the new data structure
+                    try {
+                        await get().saveData();
+                    } catch (error) {
+                        console.error("Failed to save new variable columns:", error);
+                        throw error;
+                    }
+
+                    return { startColumnIndex, endColumnIndex };
+                },
             };
         })
     )
 );
+

@@ -168,6 +168,7 @@ interface VariableStoreState {
     // Single-item operations
     addVariable: (variableData?: Partial<Variable>) => Promise<void>;
     addVariables: (variablesData: Partial<Variable>[], updates: CellUpdate[]) => Promise<void>;
+    registerVariableMetadata: (variablesData: Partial<Variable>[]) => Promise<void>;
     updateVariable: <K extends keyof Variable>(identifier: number | string, field: K, value: Variable[K]) => Promise<void>;
     updateMultipleFields: (identifier: number | string, changes: Partial<Variable>) => Promise<void>;
     deleteVariable: (columnIndex: number) => Promise<void>;
@@ -291,32 +292,32 @@ export const useVariableStore = create<VariableStoreState>()(
                 try {
                     // Save any pending changes first to avoid data loss
                     await useDataStore.getState().checkAndSave();
-            
+
                     const finalNewVars: Variable[] = [];
                     const combinedVars = [...get().variables]; // Start with current variables for uniqueness checks
-            
+
                     // Sort by column index to process them in order
                     const sortedVariablesData = [...variablesData].sort((a, b) => a.columnIndex! - b.columnIndex!);
-            
+
                     for (const varData of sortedVariablesData) {
                         const idx = varData.columnIndex!;
                         // Use the combined array which grows with each new variable
                         const defaultVar = createDefaultVariable(idx, combinedVars);
                         const inferred = varData.type ? inferDefaultValues(varData.type) : {};
                         const baseVar: Variable = { ...defaultVar, ...inferred, ...varData, columnIndex: idx };
-                        
+
                         const nameRes = processVariableName(baseVar.name, combinedVars);
                         const finalName = nameRes.processedName ?? baseVar.name;
                         const finalVar: Variable = { ...baseVar, name: finalName, ...enforceMeasureConstraint({ ...baseVar, name: finalName }, null) };
-                        
+
                         finalNewVars.push(finalVar);
                         combinedVars.push(finalVar); // Add to temp array for the next iteration's uniqueness check
                     }
-                    
+
                     // Update data state immediately to show the column insertions
                     const dataStore = useDataStore.getState();
                     let currentData = [...dataStore.data];
-                    
+
                     // Process columns in reverse order to maintain correct indices
                     const reverseSortedVars = [...finalNewVars].sort((a, b) => b.columnIndex - a.columnIndex);
                     for (const newVar of reverseSortedVars) {
@@ -326,26 +327,69 @@ export const useVariableStore = create<VariableStoreState>()(
                             return newRow;
                         });
                     }
-                    
+
                     // Update the data store state immediately
                     dataStore.setData(currentData);
-                    
+
                     // Apply the pending updates to the new data structure
                     if (updates && updates.length > 0) {
                         await dataStore.updateCells(updates);
                     }
-                    
+
                     // Create variables in database
                     await sheetService.addMultipleColumns(finalNewVars);
-                    
+
                     // Reload variables to get the new structure from database
                     const variables = await variableService.getAllVariables();
                     updateStateAfterSuccess(set, variables);
-                    
+
                     // Save the data changes to database
                     await dataStore.saveData();
                 } catch (error: any) {
                     handleError(set, 'addVariables')(error);
+                }
+            },
+
+            /**
+             * Register variable metadata WITHOUT manipulating the data structure.
+             * Use this when data has already been injected via addVariableColumns.
+             * This prevents column shifting issues and ensures proper metadata synchronization.
+             */
+            registerVariableMetadata: async (variablesData: Partial<Variable>[]) => {
+                set(draft => { draft.isLoading = true; draft.error = null; });
+                try {
+                    // Save any pending changes first
+                    await useDataStore.getState().checkAndSave();
+
+                    const finalNewVars: Variable[] = [];
+                    const combinedVars = [...get().variables]; // Start with current variables for uniqueness checks
+
+                    // Sort by column index to process them in order
+                    const sortedVariablesData = [...variablesData].sort((a, b) => a.columnIndex! - b.columnIndex!);
+
+                    for (const varData of sortedVariablesData) {
+                        const idx = varData.columnIndex!;
+                        // Use the combined array which grows with each new variable
+                        const defaultVar = createDefaultVariable(idx, combinedVars);
+                        const inferred = varData.type ? inferDefaultValues(varData.type) : {};
+                        const baseVar: Variable = { ...defaultVar, ...inferred, ...varData, columnIndex: idx };
+
+                        const nameRes = processVariableName(baseVar.name, combinedVars);
+                        const finalName = nameRes.processedName ?? baseVar.name;
+                        const finalVar: Variable = { ...baseVar, name: finalName, ...enforceMeasureConstraint({ ...baseVar, name: finalName }, null) };
+
+                        finalNewVars.push(finalVar);
+                        combinedVars.push(finalVar);
+                    }
+
+                    // Create variables in database WITHOUT modifying the data structure
+                    await sheetService.addMultipleColumns(finalNewVars);
+
+                    // Reload variables to get the new structure from database
+                    const variables = await variableService.getAllVariables();
+                    updateStateAfterSuccess(set, variables);
+                } catch (error: any) {
+                    handleError(set, 'registerVariableMetadata')(error);
                 }
             },
 
