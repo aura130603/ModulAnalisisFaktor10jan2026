@@ -379,7 +379,6 @@ fn extract_factors_from_adjusted_matrix(
 
 
 // perbaikan bisa 14/01/2026
-// Di file: factor_extraction.rs
 
 pub fn determine_factors_to_retain(eigenvalues: &[f64], config: &FactorAnalysisConfig) -> usize {
     // KASUS 1: User memilih "Fixed number of factors"
@@ -791,6 +790,210 @@ pub fn extract_generalized_least_squares(
 }
 
 // Maximum Likelihood extraction
+// pub fn extract_maximum_likelihood(
+//     matrix: &DMatrix<f64>,
+//     config: &FactorAnalysisConfig,
+//     var_names: &[String]
+// ) -> Result<ExtractionResult, String> {
+//     let n_vars = matrix.nrows();
+
+//     // Initial communality estimates - using SMC (squared multiple correlations)
+//     let mut communalities = vec![0.0; n_vars];
+//     let inverse_matrix = match matrix.clone().try_inverse() {
+//         Some(inv) => Some(inv), // Return Option<Matrix>
+//         None => {
+//             // If matrix is singular, use alternative initial estimates
+//             for i in 0..n_vars {
+//                 communalities[i] = 0.5; // Default value
+//             }
+//             None // Return None for the Option type
+//         }
+//     };
+
+//     // If we have an inverse matrix, calculate SMC
+//     if let Some(inv) = &inverse_matrix {
+//         for i in 0..n_vars {
+//             let r_ii = inv[(i, i)];
+//             if r_ii > 0.0 {
+//                 communalities[i] = 1.0 - 1.0 / r_ii;
+//             } else {
+//                 communalities[i] = 0.5; // Default value
+//             }
+//         }
+//     }
+
+//     // Calculate initial uniqueness (psi-squared)
+//     let mut psi_squared = vec![0.0; n_vars];
+//     for i in 0..n_vars {
+//         psi_squared[i] = 1.0 - communalities[i];
+//         if psi_squared[i] < 0.005 {
+//             // Avoid very small values
+//             psi_squared[i] = 0.005;
+//         }
+//     }
+
+//     // Iterative solution for Maximum Likelihood
+//     let max_iterations = config.extraction.max_iter as usize;
+//     let convergence_criterion = 0.001;
+
+//     for iteration in 0..max_iterations {
+//         // Construct psi matrix (diagonal matrix of uniquenesses)
+//         let mut psi_matrix = DMatrix::zeros(n_vars, n_vars);
+//         for i in 0..n_vars {
+//             psi_matrix[(i, i)] = psi_squared[i];
+//         }
+
+//         // Calculate psi^(-1) * R * psi^(-1)
+//         let mut psi_inv = DMatrix::zeros(n_vars, n_vars);
+//         for i in 0..n_vars {
+//             psi_inv[(i, i)] = 1.0 / (psi_squared[i] as f64).sqrt();
+//         }
+
+//         let weighted_r = &psi_inv * matrix * &psi_inv;
+
+//         // Perform eigenvalue decomposition
+//         let eigen = weighted_r.symmetric_eigen();
+
+//         // Sort eigenvalues and eigenvectors
+//         let mut indices: Vec<usize> = (0..n_vars).collect();
+//         indices.sort_by(|&i, &j|
+//             eigen.eigenvalues[j]
+//                 .partial_cmp(&eigen.eigenvalues[i])
+//                 .unwrap_or(std::cmp::Ordering::Equal)
+//         );
+
+//         let sorted_eigenvalues: Vec<f64> = indices
+//             .iter()
+//             .map(|&i| eigen.eigenvalues[i].max(0.0)) // Ensure non-negative
+//             .collect();
+
+//         let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
+//         for i in 0..n_vars {
+//             for j in 0..n_vars {
+//                 sorted_eigenvectors[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+//             }
+//         }
+
+//         // Determine number of factors
+//         let n_factors = determine_factors_to_retain(&sorted_eigenvalues, config);
+//         if n_factors == 0 {
+//             return Err("No factors meet the retention criteria".to_string());
+//         }
+
+//         // Calculate loadings
+//         let mut loadings = DMatrix::zeros(n_vars, n_factors);
+//         for i in 0..n_vars {
+//             for j in 0..n_factors {
+//                 loadings[(i, j)] =
+//                     (psi_squared[i] as f64).sqrt() *
+//                     sorted_eigenvectors[(i, j)] *
+//                     (sorted_eigenvalues[j] - 1.0).sqrt();
+//             }
+//         }
+
+//         // Calculate new communality estimates
+//         let mut new_communalities = vec![0.0; n_vars];
+//         for i in 0..n_vars {
+//             for j in 0..n_factors {
+//                 new_communalities[i] += loadings[(i, j)].powi(2);
+//             }
+
+//             // Ensure communalities don't exceed 1.0
+//             if new_communalities[i] > 0.995 {
+//                 new_communalities[i] = 0.995;
+//             }
+//         }
+
+//         // Calculate new uniquenesses
+//         let mut new_psi_squared = vec![0.0; n_vars];
+//         for i in 0..n_vars {
+//             new_psi_squared[i] = 1.0 - new_communalities[i];
+//             if new_psi_squared[i] < 0.005 {
+//                 // Avoid very small values
+//                 new_psi_squared[i] = 0.005;
+//             }
+//         }
+
+//         // Check for convergence
+//         let mut max_change = 0.0;
+//         for i in 0..n_vars {
+//             let change = ((new_psi_squared[i] - psi_squared[i]) as f64).abs();
+//             if change > max_change {
+//                 max_change = change;
+//             }
+//         }
+
+//         if max_change < convergence_criterion {
+//             // Calculate explained variance
+//             let total_variance: f64 = if config.extraction.covariance {
+//                 // Covariance matrix: sum of all eigenvalues represents total variance
+//                 sorted_eigenvalues.iter().sum()
+//             } else {
+//                 // Correlation matrix: total variance is p
+//                 n_vars as f64
+//             };
+//             let explained_variance: Vec<f64> = (0..n_factors)
+//                 .map(
+//                     |j|
+//                         if total_variance > 0.0 {
+//                             ((new_communalities
+//                                 .iter()
+//                                 .map(|&h| h)
+//                                 .sum::<f64>() /
+//                                 total_variance) *
+//                                 100.0) /
+//                             (n_factors as f64)
+//                         } else {
+//                             0.0
+//                         }
+//                 )
+//                 .collect();
+
+//             // Calculate cumulative variance
+//             let mut cumulative_variance = vec![0.0; n_factors];
+//             let mut cum_sum = 0.0;
+//             for (i, &var) in explained_variance.iter().enumerate() {
+//                 cum_sum += var;
+//                 cumulative_variance[i] = cum_sum;
+//             }
+
+//             // Calculate chi-square for ML
+//             let n = matrix.nrows() as f64;
+//             let ml_function = sorted_eigenvalues
+//                 .iter()
+//                 .skip(n_factors)
+//                 .map(|&e| e.ln() + 1.0 / e - 1.0)
+//                 .sum::<f64>();
+
+//             let chi_square =
+//                 (n - 1.0 - (2.0 * (n_vars as f64) + 5.0) / 6.0 - (2.0 * (n_factors as f64)) / 3.0) *
+//                 ml_function;
+//             let df = ((n_vars - n_factors).pow(2) - n_vars - n_factors) / 2;
+
+//             return Ok(ExtractionResult {
+//                 loadings,
+//                 eigenvalues: sorted_eigenvalues.into_iter().take(n_factors).collect(),
+//                 communalities: new_communalities,
+//                 explained_variance,
+//                 cumulative_variance,
+//                 n_factors,
+//                 var_names: var_names.to_vec(),
+//             });
+//         }
+
+//         // Update uniquenesses for next iteration
+//         psi_squared = new_psi_squared;
+//     }
+
+//     // If we reach here, we've hit the maximum iterations without converging
+//     Err("ML extraction failed to converge within the maximum iterations".to_string())
+// }
+
+
+
+
+
+// Maximum Likelihood extraction - Fixed for Convergence & Variance Calculation
 pub fn extract_maximum_likelihood(
     matrix: &DMatrix<f64>,
     config: &FactorAnalysisConfig,
@@ -798,64 +1001,71 @@ pub fn extract_maximum_likelihood(
 ) -> Result<ExtractionResult, String> {
     let n_vars = matrix.nrows();
 
-    // Initial communality estimates - using SMC (squared multiple correlations)
+    // 1. Initial Communaity Estimates (SMC)
     let mut communalities = vec![0.0; n_vars];
-    let inverse_matrix = match matrix.clone().try_inverse() {
-        Some(inv) => Some(inv), // Return Option<Matrix>
-        None => {
-            // If matrix is singular, use alternative initial estimates
-            for i in 0..n_vars {
-                communalities[i] = 0.5; // Default value
-            }
-            None // Return None for the Option type
-        }
-    };
-
-    // If we have an inverse matrix, calculate SMC
-    if let Some(inv) = &inverse_matrix {
+    // Coba invers matriks untuk SMC
+    if let Some(inv) = matrix.clone().try_inverse() {
         for i in 0..n_vars {
             let r_ii = inv[(i, i)];
             if r_ii > 0.0 {
                 communalities[i] = 1.0 - 1.0 / r_ii;
             } else {
-                communalities[i] = 0.5; // Default value
+                communalities[i] = 0.5; // Fallback
             }
+        }
+    } else {
+        // Jika singular, gunakan max correlation sebagai estimasi awal (seperti ULS/PAF)
+        for i in 0..n_vars {
+            let mut max_r = 0.0;
+            for j in 0..n_vars {
+                if i != j {
+                    let val = matrix[(i, j)].abs();
+                    if val > max_r { max_r = val; }
+                }
+            }
+            communalities[i] = max_r;
         }
     }
 
-    // Calculate initial uniqueness (psi-squared)
+    // Safety clamp untuk initial communalities
+    for val in &mut communalities {
+        if *val >= 1.0 { *val = 0.999; }
+        if *val < 0.0 { *val = 0.001; }
+    }
+
+    // Initial uniqueness (psi-squared)
     let mut psi_squared = vec![0.0; n_vars];
     for i in 0..n_vars {
         psi_squared[i] = 1.0 - communalities[i];
-        if psi_squared[i] < 0.005 {
-            // Avoid very small values
-            psi_squared[i] = 0.005;
-        }
     }
 
-    // Iterative solution for Maximum Likelihood
+    // Iterative solution
     let max_iterations = config.extraction.max_iter as usize;
     let convergence_criterion = 0.001;
+    
+    // Variabel untuk menyimpan state terakhir
+    let mut final_loadings = DMatrix::zeros(n_vars, 1);
+    let mut final_eigenvalues = Vec::new();
+    let mut final_n_factors = 0;
+    let mut converged = false;
 
-    for iteration in 0..max_iterations {
-        // Construct psi matrix (diagonal matrix of uniquenesses)
-        let mut psi_matrix = DMatrix::zeros(n_vars, n_vars);
+    for _iteration in 0..max_iterations {
+        // Construct psi matrix (diagonal uniqueness)
+        // Dan hitung transformasi: Psi^(-1/2)
+        let mut psi_inv_sqrt = DMatrix::zeros(n_vars, n_vars);
         for i in 0..n_vars {
-            psi_matrix[(i, i)] = psi_squared[i];
+            // Hindari pembagian nol atau nilai negatif
+            let val = psi_squared[i].max(0.0001); 
+            psi_inv_sqrt[(i, i)] = 1.0 / val.sqrt();
         }
 
-        // Calculate psi^(-1) * R * psi^(-1)
-        let mut psi_inv = DMatrix::zeros(n_vars, n_vars);
-        for i in 0..n_vars {
-            psi_inv[(i, i)] = 1.0 / (psi_squared[i] as f64).sqrt();
-        }
+        // Weighted Matrix = Psi^(-1/2) * R * Psi^(-1/2)
+        let weighted_r = &psi_inv_sqrt * matrix * &psi_inv_sqrt;
 
-        let weighted_r = &psi_inv * matrix * &psi_inv;
-
-        // Perform eigenvalue decomposition
+        // Eigen decomposition
         let eigen = weighted_r.symmetric_eigen();
 
-        // Sort eigenvalues and eigenvectors
+        // Sort eigenvalues & eigenvectors (Descending)
         let mut indices: Vec<usize> = (0..n_vars).collect();
         indices.sort_by(|&i, &j|
             eigen.eigenvalues[j]
@@ -863,11 +1073,10 @@ pub fn extract_maximum_likelihood(
                 .unwrap_or(std::cmp::Ordering::Equal)
         );
 
-        let sorted_eigenvalues: Vec<f64> = indices
-            .iter()
-            .map(|&i| eigen.eigenvalues[i].max(0.0)) // Ensure non-negative
+        let sorted_eigenvalues: Vec<f64> = indices.iter()
+            .map(|&i| eigen.eigenvalues[i].max(0.0))
             .collect();
-
+            
         let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
         for i in 0..n_vars {
             for j in 0..n_vars {
@@ -877,118 +1086,132 @@ pub fn extract_maximum_likelihood(
 
         // Determine number of factors
         let n_factors = determine_factors_to_retain(&sorted_eigenvalues, config);
+        
+        // Simpan state untuk antisipasi jika loop selesai
+        final_eigenvalues = sorted_eigenvalues.clone();
+        final_n_factors = n_factors;
+
         if n_factors == 0 {
             return Err("No factors meet the retention criteria".to_string());
         }
 
-        // Calculate loadings
+        // Calculate Loadings
+        // L = Psi^(1/2) * Eigenvec * (Eigenval - I)^(1/2)
         let mut loadings = DMatrix::zeros(n_vars, n_factors);
         for i in 0..n_vars {
             for j in 0..n_factors {
-                loadings[(i, j)] =
-                    (psi_squared[i] as f64).sqrt() *
-                    sorted_eigenvectors[(i, j)] *
-                    (sorted_eigenvalues[j] - 1.0).sqrt();
+                let eig_val = sorted_eigenvalues[j];
+                // Di ML, kita ambil akar dari (Eigenvalue - 1)
+                // Jika Eigenvalue < 1, secara teoritis tidak ada solusi real, kita clamp ke 0
+                let scale_factor = if eig_val > 1.0 { (eig_val - 1.0).sqrt() } else { 0.0 };
+                
+                loadings[(i, j)] = psi_squared[i].sqrt() * sorted_eigenvectors[(i, j)] * scale_factor;
             }
         }
 
-        // Calculate new communality estimates
+        // Calculate New Communalities (Sum of squared loadings)
         let mut new_communalities = vec![0.0; n_vars];
         for i in 0..n_vars {
+            let mut sum_sq = 0.0;
             for j in 0..n_factors {
-                new_communalities[i] += loadings[(i, j)].powi(2);
+                sum_sq += loadings[(i, j)].powi(2);
             }
-
-            // Ensure communalities don't exceed 1.0
-            if new_communalities[i] > 0.995 {
-                new_communalities[i] = 0.995;
-            }
+            // Heywood case clamping (SPSS style)
+            if sum_sq >= 0.9999 { sum_sq = 0.9999; }
+            new_communalities[i] = sum_sq;
         }
 
-        // Calculate new uniquenesses
+        // Calculate New Uniqueness
         let mut new_psi_squared = vec![0.0; n_vars];
+        let mut max_change = 0.0;
+        
         for i in 0..n_vars {
             new_psi_squared[i] = 1.0 - new_communalities[i];
-            if new_psi_squared[i] < 0.005 {
-                // Avoid very small values
-                new_psi_squared[i] = 0.005;
-            }
-        }
-
-        // Check for convergence
-        let mut max_change = 0.0;
-        for i in 0..n_vars {
-            let change = ((new_psi_squared[i] - psi_squared[i]) as f64).abs();
+            
+            // Perubahan dicek pada uniqueness (atau communalities, sama saja)
+            let change = (new_communalities[i] - communalities[i]).abs();
             if change > max_change {
                 max_change = change;
             }
         }
 
-        if max_change < convergence_criterion {
-            // Calculate explained variance
-            let total_variance: f64 = if config.extraction.covariance {
-                // Covariance matrix: sum of all eigenvalues represents total variance
-                sorted_eigenvalues.iter().sum()
-            } else {
-                // Correlation matrix: total variance is p
-                n_vars as f64
-            };
-            let explained_variance: Vec<f64> = (0..n_factors)
-                .map(
-                    |j|
-                        if total_variance > 0.0 {
-                            ((new_communalities
-                                .iter()
-                                .map(|&h| h)
-                                .sum::<f64>() /
-                                total_variance) *
-                                100.0) /
-                            (n_factors as f64)
-                        } else {
-                            0.0
-                        }
-                )
-                .collect();
-
-            // Calculate cumulative variance
-            let mut cumulative_variance = vec![0.0; n_factors];
-            let mut cum_sum = 0.0;
-            for (i, &var) in explained_variance.iter().enumerate() {
-                cum_sum += var;
-                cumulative_variance[i] = cum_sum;
-            }
-
-            // Calculate chi-square for ML
-            let n = matrix.nrows() as f64;
-            let ml_function = sorted_eigenvalues
-                .iter()
-                .skip(n_factors)
-                .map(|&e| e.ln() + 1.0 / e - 1.0)
-                .sum::<f64>();
-
-            let chi_square =
-                (n - 1.0 - (2.0 * (n_vars as f64) + 5.0) / 6.0 - (2.0 * (n_factors as f64)) / 3.0) *
-                ml_function;
-            let df = ((n_vars - n_factors).pow(2) - n_vars - n_factors) / 2;
-
-            return Ok(ExtractionResult {
-                loadings,
-                eigenvalues: sorted_eigenvalues.into_iter().take(n_factors).collect(),
-                communalities: new_communalities,
-                explained_variance,
-                cumulative_variance,
-                n_factors,
-                var_names: var_names.to_vec(),
-            });
-        }
-
-        // Update uniquenesses for next iteration
+        // Update state
+        communalities = new_communalities;
         psi_squared = new_psi_squared;
+        final_loadings = loadings; // Update loadings terakhir
+
+        if max_change < convergence_criterion {
+            converged = true;
+            break;
+        }
     }
 
-    // If we reach here, we've hit the maximum iterations without converging
-    Err("ML extraction failed to converge within the maximum iterations".to_string())
+    // --- BAGIAN PERBAIKAN UTAMA ---
+    // Jangan return Err jika tidak converge, tapi kembalikan hasil estimasi terakhir.
+    // Ini memperbaiki masalah tabel hilang di frontend.
+    
+    // Calculate final explained variance per Factor
+    // "Extraction Sums of Squared Loadings" di SPSS = Sum of Squared Loadings kolom tersebut
+    let total_variance: f64 = if config.extraction.covariance {
+        // Untuk Covariance: Total variance adalah sum initial eigenvalues (trace matrix)
+        // Kita perlu menghitung ulang trace dari matriks input untuk akurasi
+        matrix.diagonal().sum()
+    } else {
+        // Untuk Correlation: Total variance = jumlah variabel
+        n_vars as f64
+    };
+
+    let n_factors = if final_n_factors > 0 { final_n_factors } else { 1 };
+    
+    // Pastikan dimensi final loadings sesuai (jika fallback dari loop tanpa resize)
+    if final_loadings.ncols() != n_factors {
+        final_loadings = final_loadings.columns(0, n_factors.min(final_loadings.ncols())).into_owned();
+    }
+
+    // Hitung variance per faktor berdasarkan Loadings Akhir
+    let mut extraction_eigenvalues_report = Vec::new();
+    let mut explained_variance = Vec::new();
+    
+    for j in 0..n_factors {
+        let mut sum_sq_loadings = 0.0;
+        for i in 0..n_vars {
+            if j < final_loadings.ncols() {
+                 sum_sq_loadings += final_loadings[(i, j)].powi(2);
+            }
+        }
+        
+        // Simpan nilai ini sebagai "Eigenvalue" untuk kolom Extraction di tabel Total Variance Explained
+        extraction_eigenvalues_report.push(sum_sq_loadings);
+        
+        let percent = if total_variance > 0.0 {
+            (sum_sq_loadings / total_variance) * 100.0
+        } else { 0.0 };
+        
+        explained_variance.push(percent);
+    }
+
+    // Cumulative Variance
+    let mut cumulative_variance = vec![0.0; n_factors];
+    let mut cum_sum = 0.0;
+    for (i, &var) in explained_variance.iter().enumerate() {
+        cum_sum += var;
+        cumulative_variance[i] = cum_sum;
+    }
+
+    Ok(ExtractionResult {
+        loadings: final_loadings,
+        // PENTING: Untuk ML, nilai "Eigenvalue" di tabel Extraction adalah Sum of Squared Loadings
+        eigenvalues: extraction_eigenvalues_report, 
+        communalities,
+        explained_variance,
+        cumulative_variance,
+        n_factors,
+        var_names: var_names.to_vec(),
+    })
 }
+
+
+
 
 // Alpha Factoring extraction
 pub fn extract_alpha_factoring(

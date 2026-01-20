@@ -414,15 +414,34 @@ impl FormatResult {
                 })
                 .collect();
 
-            let extraction = comm.variable_order
-                .iter()
-                .map(|var_name| {
-                    VariableValue {
-                        variable: var_name.clone(),
-                        value: *comm.extraction.get(var_name).unwrap_or(&0.0),
-                    }
-                })
-                .collect();
+            // let extraction = comm.variable_order
+            //     .iter()
+            //     .map(|var_name| {
+            //         VariableValue {
+            //             variable: var_name.clone(),
+            //             value: *comm.extraction.get(var_name).unwrap_or(&0.0),
+            //         }
+            //     })
+            //     .collect();
+
+
+                // --- PERBAIKAN DI SINI ---
+            // Jika comm.extraction kosong (karena suppress di report.rs),
+            // JANGAN lakukan mapping dengan unwrap_or(&0.0). Kembalikan Vec kosong.
+            let extraction: Vec<VariableValue> = if comm.extraction.is_empty() {
+                Vec::new()
+            } else {
+                comm.variable_order
+                    .iter()
+                    .map(|var_name| {
+                        VariableValue {
+                            variable: var_name.clone(),
+                            value: *comm.extraction.get(var_name).unwrap_or(&0.0),
+                        }
+                    })
+                    .collect()
+            };
+
 
             FormattedCommunalities {
                 raw_initial,
