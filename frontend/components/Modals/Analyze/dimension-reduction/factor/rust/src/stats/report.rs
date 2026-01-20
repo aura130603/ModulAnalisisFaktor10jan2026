@@ -53,20 +53,19 @@ pub fn calculate_communalities(
     // --- PERBAIKAN LOGIKA SUPPRESS (MENYEMBUNYIKAN KOLOM EXTRACTION) ---
     // SPSS menyembunyikan kolom extraction pada ML jika terjadi "Heywood Case" (Communalities >= 1.0)
     // atau jika solusi tidak valid.
-    // let suppress_extraction = if matches!(config.extraction.method, ExtractionMethod::MaximumLikelihood) {
-    //     // Cek 1: Apakah ada nilai yang >= 0.999 (Heywood case clamp limit)
-    //     // Cek 2: Apakah ada nilai 0.0 total (Indikasi gagal konvergensi/bad fit seperti di gambar 1)
-    //     extraction_result.communalities.iter().any(|&c| c >= 0.99 || c.abs() < 1e-6)
-    // } else {
-    //     false 
-    // };
 
     // Tambahkan ExtractionMethod::PrincipalAxisFactoring ke dalam logika suppress.
     // Kita suppress jika terjadi Heywood Case (nilai >= 0.9999) atau gagal konvergensi (nilai 0).
     // Pada gambar Anda, VAR5 bernilai 1.1712, jadi kondisi c >= 0.9999 akan bernilai TRUE.
+    // Tambahkan pengecekan .is_nan() dan .is_infinite()
     let suppress_extraction = match config.extraction.method {
-        ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
-            extraction_result.communalities.iter().any(|&c| c >= 0.9999 || c.abs() < 1e-6)
+        ExtractionMethod::GeneralizedLeastSquares | ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
+            extraction_result.communalities.iter().any(|&c| {
+                c.is_nan() ||           // Cek jika nilainya NaN (Not a Number)
+                c.is_infinite() ||      // Cek jika nilainya Infinity
+                c >= 0.9999 ||          // Cek Heywood Case
+                c.abs() < 1e-6          // Cek jika nilai 0 (gagal ekstraksi)
+            })
         },
         _ => false 
     };
@@ -237,17 +236,14 @@ pub fn calculate_total_variance_explained_from_data(
     // STEP B: HITUNG EXTRACTION EIGENVALUES
     let extraction_result = extract_factors(&matrix, config, &var_names)?;
 
-    // // --- LOGIKA PERBAIKAN: Deteksi Heywood Case ---
-    // let suppress_extraction = if matches!(config.extraction.method, ExtractionMethod::MaximumLikelihood) {
-    //     // PERUBAHAN: Turunkan threshold ke 0.99
-    //     extraction_result.communalities.iter().any(|&c| c >= 0.99)
-    // } else {
-    //     false
-    // };
-
     let suppress_extraction = match config.extraction.method {
-        ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
-            extraction_result.communalities.iter().any(|&c| c >= 0.9999 || c.abs() < 1e-6)
+        ExtractionMethod::GeneralizedLeastSquares | ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
+            extraction_result.communalities.iter().any(|&c| {
+                c.is_nan() ||           // Cek NaN
+                c.is_infinite() ||      // Cek Infinite
+                c >= 0.9999 ||          // Cek Heywood Case
+                c.abs() < 1e-6          // Cek 0
+            })
         },
         _ => false
     };

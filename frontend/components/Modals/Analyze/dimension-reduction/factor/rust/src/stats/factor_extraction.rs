@@ -1006,9 +1006,6 @@ pub fn extract_maximum_likelihood(
     })
 }
 
-
-
-
 // Alpha Factoring extraction
 pub fn extract_alpha_factoring(
     matrix: &DMatrix<f64>,
