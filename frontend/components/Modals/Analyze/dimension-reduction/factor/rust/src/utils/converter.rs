@@ -2,6 +2,8 @@
 
 use wasm_bindgen::JsValue;
 use serde::Serialize;
+use crate::models::config::OptionsConfig;
+use crate::stats::display_format::format_factor_matrix;
 use crate::models::result::{
     ComponentCorrelationMatrix,
     ComponentScoreCovarianceMatrix,
@@ -24,10 +26,10 @@ pub fn string_to_js_error(error: String) -> JsValue {
     JsValue::from_str(&error)
 }
 
-pub fn format_result(result: &Option<FactorAnalysisResult>) -> Result<JsValue, JsValue> {
+pub fn format_result(result: &Option<FactorAnalysisResult>, config: &crate::models::config::FactorAnalysisConfig) -> Result<JsValue, JsValue> {
     match result {
         Some(result) => {
-            let formatted = FormatResult::from_analysis_result(result);
+            let formatted = FormatResult::from_analysis_result(result, &config.options);
             Ok(serde_wasm_bindgen::to_value(&formatted).unwrap())
         }
         None => Err(JsValue::from_str("No analysis results available")),
@@ -127,13 +129,24 @@ struct FormattedCommunalities {
 
 #[derive(Serialize)]
 struct FormattedComponentMatrix {
-    components: Vec<ComponentEntry>,
+    components: Vec<FormattedComponentEntry>,
 }
 
 #[derive(Serialize)]
 struct ComponentEntry {
     variable: String,
     values: Vec<f64>,
+}
+
+/// Entry khusus untuk matriks yang terpengaruh oleh Sorted by Size dan Suppress Small Coefficients:
+/// - Component Matrix
+/// - Rotated Component Matrix
+/// - Pattern Matrix
+/// - Structure Matrix
+#[derive(Serialize)]
+struct FormattedComponentEntry {
+    variable: String,
+    values: Vec<Option<f64>>,
 }
 
 #[derive(Serialize)]
@@ -150,17 +163,17 @@ struct FormattedReproducedCovariances {
 
 #[derive(Serialize)]
 struct FormattedRotatedComponentMatrix {
-    components: Vec<ComponentEntry>,
+    components: Vec<FormattedComponentEntry>,
 }
 
 #[derive(Serialize)]
 struct FormattedPatternMatrix {
-    components: Vec<ComponentEntry>,
+    components: Vec<FormattedComponentEntry>,
 }
 
 #[derive(Serialize)]
 struct FormattedStructureMatrix {
-    components: Vec<ComponentEntry>,
+    components: Vec<FormattedComponentEntry>,
 }
 
 #[derive(Serialize)]
@@ -176,7 +189,7 @@ struct ScoreColumn {
 }
 
 impl FormatResult {
-    fn from_analysis_result(result: &FactorAnalysisResult) -> Self {
+    fn from_analysis_result(result: &FactorAnalysisResult, options: &OptionsConfig) -> Self {
         let correlation_matrix = result.correlation_matrix.as_ref().map(|matrix| {
             // Use variable_order to maintain the correct order
             let correlations = matrix.variable_order
@@ -451,14 +464,28 @@ impl FormatResult {
             }
         });
 
+        // ==================================================================================
+        // COMPONENT MATRIX - TERPENGARUH OLEH SORTED BY SIZE DAN SUPPRESS SMALL COEFFICIENTS
+        // ==================================================================================
         let component_matrix = result.component_matrix.as_ref().map(|matrix| {
-            let components = matrix.variable_order
+            // Konversi HashMap ke Vec<Vec<f64>> dengan urutan sesuai variable_order
+            let values: Vec<Vec<f64>> = matrix.variable_order
                 .iter()
                 .map(|var_name| {
-                    ComponentEntry {
-                        variable: var_name.clone(),
-                        values: matrix.components.get(var_name).cloned().unwrap_or_default(),
-                    }
+                    matrix.components.get(var_name).cloned().unwrap_or_default()
+                })
+                .collect();
+
+            // Terapkan sorting dan suppress menggunakan display_format
+            let formatted = format_factor_matrix(&matrix.variable_order, &values, options);
+
+            // Konversi kembali ke FormattedComponentEntry
+            let components: Vec<FormattedComponentEntry> = formatted.sorted_var_names
+                .iter()
+                .zip(formatted.formatted_values.iter())
+                .map(|(name, vals)| FormattedComponentEntry {
+                    variable: name.clone(),
+                    values: vals.clone(),
                 })
                 .collect();
 
@@ -581,14 +608,28 @@ impl FormatResult {
             }
         });
 
+        // ==================================================================================
+        // ROTATED COMPONENT MATRIX - TERPENGARUH OLEH SORTED BY SIZE DAN SUPPRESS SMALL COEFFICIENTS
+        // ==================================================================================
         let rotated_component_matrix = result.rotated_component_matrix.as_ref().map(|matrix| {
-            let components = matrix.variable_order
+            // Konversi HashMap ke Vec<Vec<f64>> dengan urutan sesuai variable_order
+            let values: Vec<Vec<f64>> = matrix.variable_order
                 .iter()
                 .map(|var_name| {
-                    ComponentEntry {
-                        variable: var_name.clone(),
-                        values: matrix.components.get(var_name).cloned().unwrap_or_default(),
-                    }
+                    matrix.components.get(var_name).cloned().unwrap_or_default()
+                })
+                .collect();
+
+            // Terapkan sorting dan suppress menggunakan display_format
+            let formatted = format_factor_matrix(&matrix.variable_order, &values, options);
+
+            // Konversi kembali ke FormattedComponentEntry
+            let components: Vec<FormattedComponentEntry> = formatted.sorted_var_names
+                .iter()
+                .zip(formatted.formatted_values.iter())
+                .map(|(name, vals)| FormattedComponentEntry {
+                    variable: name.clone(),
+                    values: vals.clone(),
                 })
                 .collect();
 
@@ -597,14 +638,28 @@ impl FormatResult {
             }
         });
 
+        // ==================================================================================
+        // PATTERN MATRIX - TERPENGARUH OLEH SORTED BY SIZE DAN SUPPRESS SMALL COEFFICIENTS
+        // ==================================================================================
         let pattern_matrix = result.pattern_matrix.as_ref().map(|matrix| {
-            let components = matrix.variable_order
+            // Konversi HashMap ke Vec<Vec<f64>> dengan urutan sesuai variable_order
+            let values: Vec<Vec<f64>> = matrix.variable_order
                 .iter()
                 .map(|var_name| {
-                    ComponentEntry {
-                        variable: var_name.clone(),
-                        values: matrix.components.get(var_name).cloned().unwrap_or_default(),
-                    }
+                    matrix.components.get(var_name).cloned().unwrap_or_default()
+                })
+                .collect();
+
+            // Terapkan sorting dan suppress menggunakan display_format
+            let formatted = format_factor_matrix(&matrix.variable_order, &values, options);
+
+            // Konversi kembali ke FormattedComponentEntry
+            let components: Vec<FormattedComponentEntry> = formatted.sorted_var_names
+                .iter()
+                .zip(formatted.formatted_values.iter())
+                .map(|(name, vals)| FormattedComponentEntry {
+                    variable: name.clone(),
+                    values: vals.clone(),
                 })
                 .collect();
 
@@ -613,14 +668,28 @@ impl FormatResult {
             }
         });
 
+        // ==================================================================================
+        // STRUCTURE MATRIX - TERPENGARUH OLEH SORTED BY SIZE DAN SUPPRESS SMALL COEFFICIENTS
+        // ==================================================================================
         let structure_matrix = result.structure_matrix.as_ref().map(|matrix| {
-            let components = matrix.variable_order
+            // Konversi HashMap ke Vec<Vec<f64>> dengan urutan sesuai variable_order
+            let values: Vec<Vec<f64>> = matrix.variable_order
                 .iter()
                 .map(|var_name| {
-                    ComponentEntry {
-                        variable: var_name.clone(),
-                        values: matrix.components.get(var_name).cloned().unwrap_or_default(),
-                    }
+                    matrix.components.get(var_name).cloned().unwrap_or_default()
+                })
+                .collect();
+
+            // Terapkan sorting dan suppress menggunakan display_format
+            let formatted = format_factor_matrix(&matrix.variable_order, &values, options);
+
+            // Konversi kembali ke FormattedComponentEntry
+            let components: Vec<FormattedComponentEntry> = formatted.sorted_var_names
+                .iter()
+                .zip(formatted.formatted_values.iter())
+                .map(|(name, vals)| FormattedComponentEntry {
+                    variable: name.clone(),
+                    values: vals.clone(),
                 })
                 .collect();
 
@@ -629,6 +698,9 @@ impl FormatResult {
             }
         });
 
+        // ==================================================================================
+        // COMPONENT SCORE COEFFICIENT MATRIX - TIDAK TERPENGARUH (tetap menggunakan urutan asli)
+        // ==================================================================================
         let component_score_coefficient_matrix = result.component_score_coefficient_matrix
             .as_ref()
             .map(|matrix| {

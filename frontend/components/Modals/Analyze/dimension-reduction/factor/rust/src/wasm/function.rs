@@ -394,8 +394,8 @@ pub fn get_results(result: &Option<FactorAnalysisResult>) -> Result<JsValue, JsV
     }
 }
 
-pub fn get_formatted_results(result: &Option<FactorAnalysisResult>) -> Result<JsValue, JsValue> {
-    format_result(result)
+pub fn get_formatted_results(result: &Option<FactorAnalysisResult>, config: &FactorAnalysisConfig) -> Result<JsValue, JsValue> {
+    format_result(result, config)
 }
 
 pub fn get_all_errors(error_collector: &ErrorCollector) -> JsValue {

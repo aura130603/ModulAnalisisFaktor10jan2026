@@ -139,25 +139,58 @@ pub fn extract_data_matrix(
         let mut row = Vec::new();
         let mut has_missing = false;
 
+        // for var_name in &var_names {
+        //     match record.values.get(var_name) {
+        //         Some(DataValue::Number(value)) => row.push(*value),
+        //         _ => {
+        //             has_missing = true;
+        //             if config.options.replace_mean {
+        //                 row.push(f64::NAN); // Will replace with mean later
+        //             } else {
+        //                 break; // Skip this record
+        //             }
+        //         }
+        //     }
+        // }
+
+        // if !has_missing || (has_missing && !config.options.exclude_list_wise) {
+        //     if row.len() == var_names.len() {
+        //         valid_records.push(row);
+        //     }
+        // }
+
+        
+        // mulai perbaikan 21.1.2026
         for var_name in &var_names {
             match record.values.get(var_name) {
                 Some(DataValue::Number(value)) => row.push(*value),
                 _ => {
                     has_missing = true;
                     if config.options.replace_mean {
-                        row.push(f64::NAN); // Will replace with mean later
+                        row.push(f64::NAN); // Nanti diganti mean
+                    } else if config.options.exclude_pair_wise {
+                        // UPDATE PENTING:
+                        // Jika Pair-wise, kita JANGAN break. Kita masukkan NaN.
+                        // Nanti perhitungan matriks Korelasi harus pintar mengabaikan NaN ini.
+                        row.push(f64::NAN); 
                     } else {
-                        break; // Skip this record
+                        // Jika List-wise (default), kita skip row ini
+                        break; 
                     }
                 }
             }
         }
 
-        if !has_missing || (has_missing && !config.options.exclude_list_wise) {
+        // Update logika validasi row
+        // Jika Pair-wise, kita terima row meskipun has_missing (selama row length lengkap dengan NaN)
+        if (!has_missing || config.options.exclude_pair_wise || (has_missing && config.options.replace_mean)) {
             if row.len() == var_names.len() {
                 valid_records.push(row);
             }
         }
+        // akhir perbaikan 21.1.2026
+
+        
     }
 
     if valid_records.is_empty() {

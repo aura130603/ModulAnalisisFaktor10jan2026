@@ -16,6 +16,115 @@ use crate::models::{
 
 use super::core::{ extract_data_matrix, incomplete_beta };
 
+// pub fn calculate_matrix(
+//     data_matrix: &DMatrix<f64>,
+//     matrix_type: &str
+// ) -> Result<DMatrix<f64>, String> {
+//     let n_rows = data_matrix.nrows();
+//     let n_cols = data_matrix.ncols();
+
+//     if n_rows < 2 {
+//         return Err("Not enough data to calculate matrix".to_string());
+//     }
+
+//     // Calculate column means
+//     let mut means = DVector::zeros(n_cols);
+//     for j in 0..n_cols {
+//         let mut sum = 0.0;
+//         for i in 0..n_rows {
+//             sum += data_matrix[(i, j)];
+//         }
+//         means[j] = sum / (n_rows as f64);
+//     }
+
+//     // Calculate matrix
+//     let mut result = DMatrix::zeros(n_cols, n_cols);
+
+//     if matrix_type == "correlation" {
+//         // Implement Pearson correlation formula:
+//         // r = sum((x_i - mean_x) * (y_i - mean_y)) / sqrt(sum((x_i - mean_x)^2) * sum((y_i - mean_y)^2))
+//         for i in 0..n_cols {
+//             for j in 0..n_cols {
+//                 let mut sum_xy = 0.0;
+//                 let mut sum_x2 = 0.0;
+//                 let mut sum_y2 = 0.0;
+
+//                 for k in 0..n_rows {
+//                     let dx = data_matrix[(k, i)] - means[i];
+//                     let dy = data_matrix[(k, j)] - means[j];
+
+//                     sum_xy += dx * dy;
+//                     sum_x2 += dx * dx;
+//                     sum_y2 += dy * dy;
+//                 }
+
+//                 let denominator = (sum_x2 * sum_y2).sqrt();
+
+//                 if denominator > 0.0 {
+//                     result[(i, j)] = sum_xy / denominator;
+//                 } else {
+//                     // If denominator is 0 (no variation), correlation is undefined
+//                     result[(i, j)] = if i == j { 1.0 } else { 0.0 };
+//                 }
+//             }
+//         }
+//     } else {
+//         // Covariance matrix: cov = sum((x_i - mean_x) * (y_i - mean_y)) / (n - 1)
+//         for i in 0..n_cols {
+//             for j in 0..n_cols {
+//                 let mut sum_product = 0.0;
+//                 for k in 0..n_rows {
+//                     sum_product += (data_matrix[(k, i)] - means[i]) * (data_matrix[(k, j)] - means[j]);
+//                 }
+//                 result[(i, j)] = sum_product / ((n_rows - 1) as f64);
+//             }
+//         }
+//     }
+
+//     Ok(result)
+// }
+
+// // Calculate descriptive statistics
+// pub fn calculate_descriptive_statistics(
+//     data: &AnalysisData,
+//     config: &FactorAnalysisConfig
+// ) -> Result<Vec<DescriptiveStatistic>, String> {
+//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+
+//     let n_rows = data_matrix.nrows();
+//     let n_cols = data_matrix.ncols();
+//     let mut stats = Vec::with_capacity(n_cols);
+
+//     for j in 0..n_cols {
+//         let mut sum = 0.0;
+//         let mut sum_sq = 0.0;
+
+//         for i in 0..n_rows {
+//             let val = data_matrix[(i, j)];
+//             sum += val;
+//             sum_sq += val.powi(2);
+//         }
+
+//         let mean = sum / (n_rows as f64);
+//         let variance = (sum_sq - sum.powi(2) / (n_rows as f64)) / ((n_rows - 1) as f64);
+//         let std_dev = variance.sqrt();
+
+//         stats.push(DescriptiveStatistic {
+//             variable: var_names[j].clone(),
+//             mean,
+//             std_deviation: std_dev,
+//             analysis_n: n_rows,
+//         });
+//     }
+
+//     Ok(stats)
+// }
+
+
+
+// perbaikan untuk mendukung menu options
+// ... imports tetap sama ...
+
 pub fn calculate_matrix(
     data_matrix: &DMatrix<f64>,
     matrix_type: &str
@@ -27,56 +136,68 @@ pub fn calculate_matrix(
         return Err("Not enough data to calculate matrix".to_string());
     }
 
-    // Calculate column means
-    let mut means = DVector::zeros(n_cols);
-    for j in 0..n_cols {
-        let mut sum = 0.0;
-        for i in 0..n_rows {
-            sum += data_matrix[(i, j)];
-        }
-        means[j] = sum / (n_rows as f64);
-    }
-
-    // Calculate matrix
     let mut result = DMatrix::zeros(n_cols, n_cols);
 
-    if matrix_type == "correlation" {
-        // Implement Pearson correlation formula:
-        // r = sum((x_i - mean_x) * (y_i - mean_y)) / sqrt(sum((x_i - mean_x)^2) * sum((y_i - mean_y)^2))
-        for i in 0..n_cols {
-            for j in 0..n_cols {
-                let mut sum_xy = 0.0;
-                let mut sum_x2 = 0.0;
-                let mut sum_y2 = 0.0;
+    // Kita gunakan Double Loop untuk setiap pasangan variabel (i, j)
+    for i in 0..n_cols {
+        for j in 0..n_cols {
+            // Variabel untuk Raw Score Formula
+            let mut sum_x = 0.0;
+            let mut sum_y = 0.0;
+            let mut sum_xy = 0.0;
+            let mut sum_x2 = 0.0; // Sum of x^2
+            let mut sum_y2 = 0.0; // Sum of y^2
+            let mut n = 0.0;      // Jumlah sampel VALID untuk pasangan ini
 
-                for k in 0..n_rows {
-                    let dx = data_matrix[(k, i)] - means[i];
-                    let dy = data_matrix[(k, j)] - means[j];
+            // Iterasi setiap baris (case)
+            for k in 0..n_rows {
+                let val_x = data_matrix[(k, i)];
+                let val_y = data_matrix[(k, j)];
 
-                    sum_xy += dx * dy;
-                    sum_x2 += dx * dx;
-                    sum_y2 += dy * dy;
-                }
-
-                let denominator = (sum_x2 * sum_y2).sqrt();
-
-                if denominator > 0.0 {
-                    result[(i, j)] = sum_xy / denominator;
-                } else {
-                    // If denominator is 0 (no variation), correlation is undefined
-                    result[(i, j)] = if i == j { 1.0 } else { 0.0 };
+                // LOGIKA UTAMA PAIR-WISE:
+                // Hanya proses jika KEDUA data ada (tidak NaN).
+                // Jika List-wise digunakan, data sudah bersih dari NaN, jadi ini tetap aman.
+                if !val_x.is_nan() && !val_y.is_nan() {
+                    sum_x += val_x;
+                    sum_y += val_y;
+                    sum_xy += val_x * val_y;
+                    sum_x2 += val_x * val_x;
+                    sum_y2 += val_y * val_y;
+                    n += 1.0;
                 }
             }
-        }
-    } else {
-        // Covariance matrix: cov = sum((x_i - mean_x) * (y_i - mean_y)) / (n - 1)
-        for i in 0..n_cols {
-            for j in 0..n_cols {
-                let mut sum_product = 0.0;
-                for k in 0..n_rows {
-                    sum_product += (data_matrix[(k, i)] - means[i]) * (data_matrix[(k, j)] - means[j]);
+
+            if n < 2.0 {
+                // Tidak cukup data untuk korelasi/kovarians
+                result[(i, j)] = 0.0; 
+                continue;
+            }
+
+            if matrix_type == "correlation" {
+                // Formula Korelasi Pearson (Raw Score):
+                // r = (n * sum_xy - sum_x * sum_y) / sqrt((n * sum_x2 - sum_x^2) * (n * sum_y2 - sum_y^2))
+                
+                let numerator = n * sum_xy - sum_x * sum_y;
+                let var_x_part = n * sum_x2 - sum_x.powi(2);
+                let var_y_part = n * sum_y2 - sum_y.powi(2);
+                
+                let denominator = (var_x_part * var_y_part).sqrt();
+
+                if denominator > 0.0 {
+                    // Clamp result untuk menghindari floating point error sedikit di atas 1.0 atau di bawah -1.0
+                    let r = numerator / denominator;
+                    result[(i, j)] = r.max(-1.0).min(1.0);
+                } else {
+                    // Jika denominator 0 (tidak ada variasi), korelasi dianggap 0 atau 1 (jika i==j)
+                    result[(i, j)] = if i == j { 1.0 } else { 0.0 };
                 }
-                result[(i, j)] = sum_product / ((n_rows - 1) as f64);
+
+            } else {
+                // Formula Kovarians (Raw Score):
+                // Cov(x,y) = (sum_xy - (sum_x * sum_y) / n) / (n - 1)
+                
+                let numerator = sum_xy - (sum_x * sum_y) / n;
+                result[(i, j)] = numerator / (n - 1.0);
             }
         }
     }
@@ -84,7 +205,7 @@ pub fn calculate_matrix(
     Ok(result)
 }
 
-// Calculate descriptive statistics
+// Update juga Descriptive Statistics agar mengabaikan NaN (untuk tabel Descriptives)
 pub fn calculate_descriptive_statistics(
     data: &AnalysisData,
     config: &FactorAnalysisConfig
@@ -98,27 +219,47 @@ pub fn calculate_descriptive_statistics(
     for j in 0..n_cols {
         let mut sum = 0.0;
         let mut sum_sq = 0.0;
+        let mut n = 0.0;
 
         for i in 0..n_rows {
             let val = data_matrix[(i, j)];
-            sum += val;
-            sum_sq += val.powi(2);
+            // Skip NaN
+            if !val.is_nan() {
+                sum += val;
+                sum_sq += val.powi(2);
+                n += 1.0;
+            }
         }
 
-        let mean = sum / (n_rows as f64);
-        let variance = (sum_sq - sum.powi(2) / (n_rows as f64)) / ((n_rows - 1) as f64);
-        let std_dev = variance.sqrt();
-
-        stats.push(DescriptiveStatistic {
-            variable: var_names[j].clone(),
-            mean,
-            std_deviation: std_dev,
-            analysis_n: n_rows,
-        });
+        if n > 0.0 {
+            let mean = sum / n;
+            let variance = if n > 1.0 {
+                (sum_sq - sum.powi(2) / n) / (n - 1.0)
+            } else {
+                0.0
+            };
+            
+            stats.push(DescriptiveStatistic {
+                variable: var_names[j].clone(),
+                mean,
+                std_deviation: variance.sqrt(),
+                analysis_n: n as usize,
+            });
+        } else {
+            // Fallback jika kolom kosong semua
+            stats.push(DescriptiveStatistic {
+                variable: var_names[j].clone(),
+                mean: 0.0,
+                std_deviation: 0.0,
+                analysis_n: 0,
+            });
+        }
     }
 
     Ok(stats)
 }
+
+
 
 // Independent correlation matrix functions
 pub fn calculate_correlation_matrix(

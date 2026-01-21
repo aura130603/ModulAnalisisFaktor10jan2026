@@ -1,5 +1,6 @@
 pub mod core;
 pub mod common;
+pub mod display_format;
 pub mod factor_extraction;
 pub mod generate_plots;
 pub mod kmo_test;
