@@ -159,7 +159,7 @@ pub fn extract_data_matrix(
         //     }
         // }
 
-        
+
         // mulai perbaikan 21.1.2026
         for var_name in &var_names {
             match record.values.get(var_name) {
@@ -183,7 +183,7 @@ pub fn extract_data_matrix(
 
         // Update logika validasi row
         // Jika Pair-wise, kita terima row meskipun has_missing (selama row length lengkap dengan NaN)
-        if (!has_missing || config.options.exclude_pair_wise || (has_missing && config.options.replace_mean)) {
+        if !has_missing || config.options.exclude_pair_wise || (has_missing && config.options.replace_mean) {
             if row.len() == var_names.len() {
                 valid_records.push(row);
             }

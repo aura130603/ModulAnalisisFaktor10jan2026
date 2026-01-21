@@ -186,7 +186,7 @@ pub fn extract_principal_axis_factoring(
     let max_iterations = config.extraction.max_iter as usize;
     let convergence_criterion = 0.001;
 
-    for iteration in 0..max_iterations {
+    for _iteration in 0..max_iterations {
         // Perform eigenvalue decomposition on adjusted correlation matrix
         let eigen = r_matrix.clone().symmetric_eigen();
 
@@ -476,7 +476,7 @@ pub fn extract_unweighted_least_squares(
         }
     };
 
-    let mut r_matrix = matrix.clone();
+    let r_matrix = matrix.clone();
     
     // --- PERUBAHAN DI SINI ---
     // Pastikan iterasi cukup banyak
@@ -666,7 +666,7 @@ pub fn extract_generalized_least_squares(
     let max_iterations = config.extraction.max_iter as usize;
     let convergence_criterion = 0.001;
 
-    for iteration in 0..max_iterations {
+    for _iteration in 0..max_iterations {
         // Calculate weight matrix W = R^(-2)
         let r_inverse = match r_matrix.clone().try_inverse() {
             Some(inv) => inv,
@@ -751,7 +751,7 @@ pub fn extract_generalized_least_squares(
 
             // Calculate chi-square for GLS
             let w = matrix.nrows() as f64;
-            let chi_square =
+            let _chi_square =
                 (w - 1.0 - (2.0 * (n_vars as f64) + 5.0) / 6.0 - (2.0 * (n_factors as f64)) / 3.0) *
                 (n_factors..n_vars)
                     .map(|j| (sorted_eigenvalues[j] - 1.0).powi(2) / 2.0)
@@ -842,9 +842,9 @@ pub fn extract_maximum_likelihood(
     
     // Variabel untuk menyimpan state terakhir
     let mut final_loadings = DMatrix::zeros(n_vars, 1);
-    let mut final_eigenvalues = Vec::new();
+    let mut _final_eigenvalues = Vec::new();
     let mut final_n_factors = 0;
-    let mut converged = false;
+    let mut _converged = false;
 
     for _iteration in 0..max_iterations {
         // Construct psi matrix (diagonal uniqueness)
@@ -885,7 +885,7 @@ pub fn extract_maximum_likelihood(
         let n_factors = determine_factors_to_retain(&sorted_eigenvalues, config);
         
         // Simpan state untuk antisipasi jika loop selesai
-        final_eigenvalues = sorted_eigenvalues.clone();
+        _final_eigenvalues = sorted_eigenvalues.clone();
         final_n_factors = n_factors;
 
         if n_factors == 0 {
@@ -938,7 +938,7 @@ pub fn extract_maximum_likelihood(
         final_loadings = loadings; // Update loadings terakhir
 
         if max_change < convergence_criterion {
-            converged = true;
+            _converged = true;
             break;
         }
     }
@@ -1024,7 +1024,7 @@ pub fn extract_alpha_factoring(
     let mut h_initial = vec![0.0; n_vars];
 
     // Initialize communalities
-    let inverse_matrix = match matrix.clone().try_inverse() {
+    let _inverse_matrix = match matrix.clone().try_inverse() {
         Some(inv) => {
             // Use SMC method
             for i in 0..n_vars {
@@ -1062,7 +1062,7 @@ pub fn extract_alpha_factoring(
     let mut h_current = h_initial.clone();
 
     // Iterative solution for Alpha factoring
-    for iteration in 0..max_iterations {
+    for _iteration in 0..max_iterations {
         // Create diagonal matrix H^(1/2)
         let mut h_sqrt = DMatrix::zeros(n_vars, n_vars);
         for i in 0..n_vars {
@@ -1283,11 +1283,11 @@ pub fn extract_image_factoring(
 
     // Calculate image covariance matrix
     // R + S^2 * R^(-1) * S^2 - 2*S^2
-    let image_covar = matrix + &s_matrix * &r_inverse * &s_matrix - &s_matrix * 2.0;
+    let _image_covar = matrix + &s_matrix * &r_inverse * &s_matrix - &s_matrix * 2.0;
 
     // Calculate anti-image covariance matrix
     // S^2 * R^(-1) * S^2
-    let anti_image_covar = &s_matrix * &r_inverse * &s_matrix;
+    let _anti_image_covar = &s_matrix * &r_inverse * &s_matrix;
 
     Ok(ExtractionResult {
         loadings,

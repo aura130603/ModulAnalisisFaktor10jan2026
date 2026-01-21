@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use nalgebra::{ DMatrix, DVector };
+use nalgebra::DMatrix;
 use statrs::distribution::{StudentsT, ContinuousCDF}; // ini untuk p-value (significant value)s
 use crate::models::{
     config::FactorAnalysisConfig,
@@ -14,7 +14,7 @@ use crate::models::{
     },
 };
 
-use super::core::{ extract_data_matrix, incomplete_beta };
+use super::core::extract_data_matrix;
 
 // pub fn calculate_matrix(
 //     data_matrix: &DMatrix<f64>,

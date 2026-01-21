@@ -8,17 +8,11 @@ use crate::models::result::{
     ComponentCorrelationMatrix,
     ComponentScoreCovarianceMatrix,
     ComponentTransformationMatrix,
-    CovarianceMatrix,
     DescriptiveStatistic,
     FactorAnalysisResult,
-    InverseCovarianceMatrix,
     KMOBartlettsTest,
-    PatternMatrix,
     ScreePlot,
-    StructureMatrix,
-    TotalVarianceExplained,
-    TotalVarianceBlock,        // TAMBAHKAN UNTUK TOTAL VARIANE EXPLAINED (COVARIANCE)
-    TotalVarianceComponent,    // TAMBAHKAN UNTUK TOTAL VARIANE EXPLAINED (COVARIANCE)
+    TotalVarianceComponent,
     LoadingPlot,
 };
 

@@ -1,8 +1,7 @@
 // perbaikan 17/1/2026
 
-use crate::stats::matrix::{calculate_mean, calculate_std_dev}; 
 use std::collections::HashMap;
-use nalgebra::{DMatrix, SymmetricEigen,};
+use nalgebra::DMatrix;
 use super::matrix::calculate_raw_variances;
 use super::core::{ calculate_matrix, extract_data_matrix, extract_factors, rotate_factors };
 use crate::models::{
@@ -583,10 +582,9 @@ pub fn calculate_component_score_covariance_matrix(
             }
         }
     } else {
-        let mut coefficients = DMatrix::zeros(n_rows, n_cols);
         match corr_matrix.clone().try_inverse() {
             Some(r_inv) => {
-                coefficients = r_inv.clone() * loadings;
+                let coefficients = r_inv.clone() * loadings;
                 let cov_matrix = coefficients.transpose() * r_inv * coefficients;
                 for i in 0..n_cols {
                     for j in 0..n_cols {
