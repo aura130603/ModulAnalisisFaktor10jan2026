@@ -541,18 +541,94 @@ import {ResultJson, Table} from "@/types/Table";
 
 
 
-    // 8. Component Matrix
+    // // 8. Component Matrix
+    // if (data.component_matrix) {
+    //     const extractedComponents =
+    //         data.component_matrix.components[0]?.values.length || 0;
+
+    //     const table: Table = {
+    //         key: "component_matrix",
+    //         title: "Component Matrix",
+    //         columnHeaders: [
+    //             { header: "", key: "var" },
+    //             {
+    //                 header: "Component",
+    //                 key: "component",
+    //                 children: Array.from(
+    //                     { length: extractedComponents },
+    //                     (_, i) => ({
+    //                         header: (i + 1).toString(),
+    //                         key: `component_${i + 1}`,
+    //                     })
+    //                 ),
+    //             },
+    //         ],
+    //         rows: [],
+    //     };
+
+    //     data.component_matrix.components.forEach((component: any) => {
+    //         const rowData: any = {
+    //             rowHeader: [component.variable],
+    //         };
+
+    //         // component.values.forEach((value: number, index: number) => {
+    //         //     rowData[`component_${index + 1}`] = formatDisplayNumber(value);
+    //         // });
+
+    //         component.values.forEach((value: number | null, index: number) => {
+    //             // REVISI: Cek apakah null (suppressed)
+    //             if (value === null || value === undefined) {
+    //                 rowData[`component_${index + 1}`] = ""; // Kosongkan sel
+    //             } else {
+    //                 rowData[`component_${index + 1}`] = formatDisplayNumber(value);
+    //             }
+    //         });
+
+    //         table.rows.push(rowData);
+    //     });
+
+    //     // Add footnote
+    //     table.rows.push({
+    //         rowHeader: [`Extraction Method: Principal Component Analysis.`],
+    //     });
+
+    //     if (extractedComponents > 0) {
+    //         table.rows.push({
+    //             rowHeader: [`a. ${extractedComponents} components extracted.`],
+    //         });
+    //     }
+
+    //     resultJson.tables.push(table);
+    // }
+
+
+
+
+    // 8. Component Matrix / Factor Matrix
     if (data.component_matrix) {
         const extractedComponents =
             data.component_matrix.components[0]?.values.length || 0;
 
+        // --- LOGIKA DINAMIS (BARU) ---
+        // Cek metode ekstraksi untuk menentukan Label Judul & Header
+        const method = data.extraction_method || "Principal Component Analysis";
+        // Jika metode BUKAN PCA, SPSS menggunakan istilah "Factor", jika PCA gunakan "Component"
+        const isPCA = method === "Principal Component Analysis";
+        
+        // 1. Tentukan Judul Tabel (Factor Matrix vs Component Matrix)
+        // Tambahkan superscript 'a' (ᵃ) jika bukan PCA, sesuai style SPSS
+        const tableTitle = isPCA ? "Component Matrix" : "Factor Matrixᵃ";
+        
+        // 2. Tentukan Header Kolom (Factor vs Component)
+        const columnGroupHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "component_matrix",
-            title: "Component Matrix",
+            title: tableTitle, // <--- Gunakan judul dinamis
             columnHeaders: [
                 { header: "", key: "var" },
                 {
-                    header: "Component",
+                    header: columnGroupHeader, // <--- Gunakan header dinamis (Factor/Component)
                     key: "component",
                     children: Array.from(
                         { length: extractedComponents },
@@ -566,34 +642,41 @@ import {ResultJson, Table} from "@/types/Table";
             rows: [],
         };
 
+        // ... (Bagian pengisian data baris tetap sama) ...
         data.component_matrix.components.forEach((component: any) => {
-            const rowData: any = {
-                rowHeader: [component.variable],
-            };
-
-            // component.values.forEach((value: number, index: number) => {
-            //     rowData[`component_${index + 1}`] = formatDisplayNumber(value);
-            // });
-
+            const rowData: any = { rowHeader: [component.variable] };
             component.values.forEach((value: number | null, index: number) => {
-                // REVISI: Cek apakah null (suppressed)
                 if (value === null || value === undefined) {
-                    rowData[`component_${index + 1}`] = ""; // Kosongkan sel
+                    rowData[`component_${index + 1}`] = "";
                 } else {
                     rowData[`component_${index + 1}`] = formatDisplayNumber(value);
                 }
             });
-
             table.rows.push(rowData);
         });
 
-        // Add footnote
+        // --- BAGIAN FOOTER (SESUAI GAMBAR SPSS) ---
+        
+        // Footer 1: Nama Metode
         table.rows.push({
-            rowHeader: [`Extraction Method: Principal Component Analysis.`],
+            rowHeader: [`Extraction Method: ${method}.`],
         });
 
-        if (extractedComponents > 0) {
+        // Footer 2: Keterangan 'a' (Iterasi)
+        // Logic: Jika ada data iterasi (dari backend), tampilkan.
+        // Jika tidak ada data iterasi tapi bukan PCA, tampilkan format standar tanpa angka iterasi.
+        if (data.component_matrix.iterations_required) {
             table.rows.push({
+                rowHeader: [`a. ${extractedComponents} factors extracted. ${data.component_matrix.iterations_required} iterations required.`],
+            });
+        } else if (!isPCA) {
+            // Fallback jika backend belum kirim 'iterations_required' tapi metode adalah Factor Analysis
+            table.rows.push({
+                rowHeader: [`a. ${extractedComponents} factors extracted.`], 
+            });
+        } else if (extractedComponents > 0 && isPCA) {
+             // Fallback untuk PCA
+             table.rows.push({
                 rowHeader: [`a. ${extractedComponents} components extracted.`],
             });
         }
