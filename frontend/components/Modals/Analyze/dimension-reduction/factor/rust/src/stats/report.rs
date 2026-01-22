@@ -441,236 +441,6 @@ pub fn calculate_scree_plot(
     })
 }
 
-// pub fn calculate_component_score_coefficient_matrix(
-//     data: &AnalysisData,
-//     config: &FactorAnalysisConfig
-// ) -> Result<ComponentScoreCoefficientMatrix, String> {
-//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
-//     let matrix_type = if config.extraction.covariance { "covariance" } else { "correlation" };
-//     let matrix = calculate_matrix(&data_matrix, matrix_type)?;
-    
-//     let extraction_result = extract_factors(&matrix, config, &var_names)?;
-//     let rotation_result = rotate_factors(&extraction_result, config)?;
-//     let mut loadings = rotation_result.rotated_loadings.clone();
-    
-//     let (n_rows_load, n_cols_load) = loadings.shape();
-//     for col in 0..n_cols_load {
-//         let mut sum_cubes = 0.0;
-//         for row in 0..n_rows_load {
-//             sum_cubes += loadings[(row, col)].powi(3);
-//         }
-//         if sum_cubes < 0.0 {
-//             for row in 0..n_rows_load {
-//                 loadings[(row, col)] *= -1.0;
-//             }
-//         }
-//     }
-
-//     let loadings_t = loadings.transpose();
-//     let n_rows = loadings.nrows();
-//     let n_cols = loadings.ncols();
-//     let mut coefficients = DMatrix::zeros(n_rows, n_cols);
-
-//     if config.scores.regression {
-//         let is_unrotated = loadings.shape() == extraction_result.loadings.shape() 
-//                            && loadings == extraction_result.loadings;
-
-//         if is_unrotated {
-//             for col in 0..n_cols {
-//                 let mut col_variance = 0.0;
-//                 for row in 0..n_rows {
-//                     col_variance += loadings[(row, col)].powi(2);
-//                 }
-//                 if col_variance < 1e-9 { col_variance = 1.0; }
-//                 for row in 0..n_rows {
-//                     coefficients[(row, col)] = loadings[(row, col)] / col_variance;
-//                 }
-//             }
-//         } else {
-//             let inv_r = matrix.try_inverse().ok_or("Could not invert correlation matrix")?;
-//             coefficients = inv_r * loadings;
-//         }
-//     } else if config.scores.bartlett {
-//         let mut u_inv_squared = DMatrix::zeros(n_rows, n_rows);
-//         for i in 0..n_rows {
-//             let h2 = if i < extraction_result.communalities.len() {
-//                 extraction_result.communalities[i]
-//             } else { 0.0 };
-//             let u2 = (1.0 - h2).max(0.001);
-//             u_inv_squared[(i, i)] = 1.0 / u2;
-//         }
-//         let ata = &loadings_t * &u_inv_squared * &loadings;
-//         let ata_inv = ata.try_inverse().ok_or("Could not invert Bartlett matrix")?;
-//         coefficients = u_inv_squared * loadings * ata_inv;
-//     } else if config.scores.anderson {
-//         let mut u_inv_squared = DMatrix::zeros(n_rows, n_rows);
-//         for i in 0..n_rows {
-//             let h2 = if i < extraction_result.communalities.len() {
-//                 extraction_result.communalities[i]
-//             } else { 0.0 };
-//             let u2 = (1.0 - h2).max(0.001);
-//             u_inv_squared[(i, i)] = 1.0 / u2;
-//         }
-//         let ata = &loadings_t * &u_inv_squared * &loadings;
-//         let ata_sqrt = symmetric_matrix_sqrt(&ata).ok_or("Failed Anderson–Rubin sqrt")?;
-//         let ata_sqrt_inv = ata_sqrt.try_inverse().ok_or("Failed Anderson–Rubin inversion")?;
-//         coefficients = u_inv_squared * loadings * ata_sqrt_inv;
-//     }
-
-//     let mut result = ComponentScoreCoefficientMatrix {
-//         components: HashMap::new(),
-//         variable_order: var_names.clone(),
-//     };
-//     for (i, var_name) in var_names.iter().enumerate() {
-//         if i < coefficients.nrows() {
-//             let mut row = Vec::with_capacity(n_cols);
-//             for j in 0..n_cols {
-//                 row.push(coefficients[(i, j)]);
-//             }
-//             result.components.insert(var_name.clone(), row);
-//         }
-//     }
-//     result.variable_order = var_names;
-//     Ok(result)
-// }
-
-
-
-// PERBAIKAN 2
-
-// pub fn calculate_component_score_coefficient_matrix(
-//     data: &AnalysisData,
-//     config: &FactorAnalysisConfig
-// ) -> Result<ComponentScoreCoefficientMatrix, String> {
-//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
-    
-//     // 1. Matriks Korelasi (R)
-//     // Selalu gunakan korelasi untuk skor standar
-//     let r_matrix = calculate_matrix(&data_matrix, "correlation")?;
-    
-//     let extraction_result = extract_factors(&r_matrix, config, &var_names)?;
-//     let rotation_result = rotate_factors(&extraction_result, config)?;
-    
-//     // Pattern Matrix (Loadings)
-//     let mut pattern_matrix = rotation_result.rotated_loadings.clone();
-//     let (n_rows_load, n_cols_load) = pattern_matrix.shape();
-    
-//     // 2. Sign Flipping (Konsistensi Arah)
-//     // Dilakukan pada Pattern Matrix sebelum perhitungan apapun
-//     for col in 0..n_cols_load {
-//         let mut sum_cubes = 0.0;
-//         for row in 0..n_rows_load {
-//             sum_cubes += pattern_matrix[(row, col)].powi(3);
-//         }
-//         // Jika mayoritas loading negatif, balik tandanya
-//         if sum_cubes < 0.0 {
-//             for row in 0..n_rows_load {
-//                 pattern_matrix[(row, col)] *= -1.0;
-//             }
-//         }
-//     }
-
-//     let n_rows = pattern_matrix.nrows();
-//     let n_cols = pattern_matrix.ncols();
-//     let mut coefficients = DMatrix::zeros(n_rows, n_cols);
-
-//     // Persiapan Variabel Umum
-//     // Uniqueness Matrix (U^2) dan Inversenya (U^-2)
-//     let mut u_inv_squared = DMatrix::zeros(n_rows, n_rows);
-//     for i in 0..n_rows {
-//         let h2 = if i < extraction_result.communalities.len() {
-//             extraction_result.communalities[i]
-//         } else { 0.0 };
-//         // Guard division by zero dengan nilai epsilon kecil
-//         let u2 = (1.0 - h2).max(1e-9); 
-//         u_inv_squared[(i, i)] = 1.0 / u2;
-//     }
-
-//     if config.scores.regression {
-//         // --- REGRESSION METHOD ---
-//         // W = R^-1 * S
-        
-//         let inv_r = r_matrix.clone().try_inverse()
-//             .ok_or("Could not invert correlation matrix (Singular).")?;
-
-//         // Structure Matrix (S)
-//         // Orthogonal: S = P
-//         // Oblique: S = P * Phi
-//         let structure_matrix = if let Some(phi) = &rotation_result.factor_correlations {
-//             &pattern_matrix * phi
-//         } else {
-//             pattern_matrix.clone()
-//         };
-
-//         coefficients = inv_r * structure_matrix;
-
-//     } else if config.scores.bartlett {
-//         // --- BARTLETT METHOD ---
-//         // W = U^-2 * P * (P' * U^-2 * P)^-1
-        
-//         let p = &pattern_matrix;
-//         let p_t = p.transpose();
-        
-//         // Term: (P' * U^-2 * P)
-//         let term_inner = &p_t * &u_inv_squared * p;
-        
-//         let term_inner_inv = term_inner.try_inverse()
-//             .ok_or("Could not invert matrix for Bartlett Scores.")?;
-            
-//         coefficients = &u_inv_squared * p * term_inner_inv;
-
-//     } else if config.scores.anderson {
-//         // --- ANDERSON-RUBIN METHOD (Robust Orthogonalization) ---
-//         // Menggunakan pendekatan ortogonalisasi skor Bartlett agar tahan terhadap ULS approximation.
-//         // Langkah 1: Hitung Koefisien Bartlett (B)
-//         // B = U^-2 * P * (P' * U^-2 * P)^-1
-        
-//         let p = &pattern_matrix;
-//         let p_t = p.transpose();
-        
-//         let term_inner = &p_t * &u_inv_squared * p;
-//         let term_inner_inv = term_inner.try_inverse()
-//             .ok_or("Could not invert matrix for Anderson-Rubin (Bartlett Step).")?;
-            
-//         let bartlett_coeffs = &u_inv_squared * p * term_inner_inv;
-
-//         // Langkah 2: Hitung Kovarians dari Skor Bartlett (G)
-//         // G = B' * R * B
-//         // Ini merepresentasikan korelasi aktual antar skor jika kita menggunakan bobot Bartlett
-//         let g_matrix = bartlett_coeffs.transpose() * &r_matrix * &bartlett_coeffs;
-
-//         // Langkah 3: Hitung Symmetric Inverse Square Root dari G (G^-1/2)
-//         // Ini adalah matriks transformasi ortogonalisasinya
-//         let g_sqrt = symmetric_matrix_sqrt(&g_matrix)
-//             .ok_or("Failed Anderson-Rubin sqrt calculation. Matrix G might be non-positive definite.")?;
-            
-//         let g_sqrt_inv = g_sqrt.try_inverse()
-//             .ok_or("Failed Anderson-Rubin inversion (G matrix).")?;
-
-//         // Langkah 4: Hitung Koefisien Akhir
-//         // W_Anderson = B * G^-1/2
-//         coefficients = bartlett_coeffs * g_sqrt_inv;
-//     }
-
-//     // --- Formatting Output ---
-//     let mut result = ComponentScoreCoefficientMatrix {
-//         components: HashMap::new(),
-//         variable_order: var_names.clone(),
-//     };
-//     for (i, var_name) in var_names.iter().enumerate() {
-//         if i < coefficients.nrows() {
-//             let mut row = Vec::with_capacity(n_cols);
-//             for j in 0..n_cols {
-//                 row.push(coefficients[(i, j)]);
-//             }
-//             result.components.insert(var_name.clone(), row);
-//         }
-//     }
-//     result.variable_order = var_names;
-//     Ok(result)
-// }
-
-
 
 // =========================================================================
 // HELPER: Alignment Check (Memastikan arah skor sesuai loading)
@@ -851,80 +621,70 @@ pub fn calculate_component_score_coefficient_matrix(
 }
 
 
-
-
-
-
-
 pub fn calculate_component_score_covariance_matrix(
     data: &AnalysisData,
     config: &FactorAnalysisConfig
 ) -> Result<ComponentScoreCovarianceMatrix, String> {
-    let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+    
+    // 1. Dapatkan Matriks Korelasi (R)
+    let (data_matrix, _var_names) = extract_data_matrix(data, config)?;
     let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
-    let extraction_result = extract_factors(&corr_matrix, config, &var_names)?;
-    let loadings = &extraction_result.loadings;
-    let n_rows = loadings.nrows();
-    let n_cols = loadings.ncols();
 
-    let mut component_score_covariance_matrix = ComponentScoreCovarianceMatrix {
-        components: vec![vec![0.0; n_cols]; n_cols],
-    };
+    // 2. Dapatkan Matriks Koefisien Skor (W)
+    // PENTING: Kita panggil fungsi yang SUDAH DIPERBAIKI sebelumnya.
+    // Ini menjamin logika Regression/Anderson/Bartlett dan Sign Alignment-nya sama persis.
+    let coeff_result = calculate_component_score_coefficient_matrix(data, config)?;
+    
+    // Konversi HashMap hasil coeff_result kembali ke DMatrix untuk perhitungan
+    let n_vars = corr_matrix.nrows();
+    // Hitung jumlah faktor (dari elemen pertama hashmap)
+    let n_factors = coeff_result.components.values().next().map(|v| v.len()).unwrap_or(0);
+    
+    if n_factors == 0 {
+        return Err("No factors found for covariance calculation".to_string());
+    }
 
-    if config.scores.anderson {
-        for i in 0..n_cols {
-            for j in 0..n_cols {
-                component_score_covariance_matrix.components[i][j] = if i == j { 1.0 } else { 0.0 };
-            }
-        }
-    } else if config.scores.bartlett {
-        let mut u_inv_squared = DMatrix::zeros(n_rows, n_rows);
-        for i in 0..n_rows {
-            let h_squared = if i < extraction_result.communalities.len() {
-                extraction_result.communalities[i]
-            } else { 0.0 };
-            let u_squared = (1.0 - h_squared).max(0.001);
-            u_inv_squared[(i, i)] = 1.0 / u_squared;
-        }
-        let a_transpose_u_inv_squared_a = loadings.transpose() * u_inv_squared * loadings;
-        match a_transpose_u_inv_squared_a.try_inverse() {
-            Some(cov_matrix) => {
-                for i in 0..n_cols {
-                    for j in 0..n_cols {
-                        component_score_covariance_matrix.components[i][j] = cov_matrix[(i, j)];
-                    }
-                }
-            }
-            None => {
-                for i in 0..n_cols {
-                    for j in 0..n_cols {
-                        component_score_covariance_matrix.components[i][j] = if i == j { 1.0 } else { 0.0 };
-                    }
-                }
-            }
-        }
-    } else {
-        match corr_matrix.clone().try_inverse() {
-            Some(r_inv) => {
-                let coefficients = r_inv.clone() * loadings;
-                let cov_matrix = coefficients.transpose() * r_inv * coefficients;
-                for i in 0..n_cols {
-                    for j in 0..n_cols {
-                        component_score_covariance_matrix.components[i][j] = cov_matrix[(i, j)];
-                    }
-                }
-            }
-            None => {
-                for i in 0..n_cols {
-                    for j in 0..n_cols {
-                        component_score_covariance_matrix.components[i][j] = if i == j { 1.0 } else { 0.0 };
-                    }
+    // Susun matriks W (Coefficients) sesuai urutan variabel matriks korelasi
+    let mut w_matrix = DMatrix::zeros(n_vars, n_factors);
+    // coeff_result.variable_order harus sama urutannya dengan data_matrix
+    // Kita asumsikan urutan var_names di extract_data_matrix sama dengan di coeff_result
+    for (row_idx, var_name) in coeff_result.variable_order.iter().enumerate() {
+        if let Some(vals) = coeff_result.components.get(var_name) {
+            for (col_idx, &val) in vals.iter().enumerate() {
+                if col_idx < n_factors {
+                    w_matrix[(row_idx, col_idx)] = val;
                 }
             }
         }
     }
-    Ok(component_score_covariance_matrix)
+
+    // 3. Hitung Covariance Matrix
+    // RUMUS BENAR: Cov = W' * R * W
+    let covariance_matrix = w_matrix.transpose() * &corr_matrix * &w_matrix;
+
+    // 4. Format Output ke Struct JSON
+    let mut output_components = Vec::new();
+    let n_out_rows = covariance_matrix.nrows();
+    let n_out_cols = covariance_matrix.ncols();
+
+    for i in 0..n_out_rows {
+        let mut row = Vec::new();
+        for j in 0..n_out_cols {
+            row.push(covariance_matrix[(i, j)]);
+        }
+        output_components.push(row);
+    }
+
+    Ok(ComponentScoreCovarianceMatrix {
+        components: output_components,
+    })
 }
+
+
+
+
+
+
 
 pub fn calculate_factor_scores(
     data: &AnalysisData,

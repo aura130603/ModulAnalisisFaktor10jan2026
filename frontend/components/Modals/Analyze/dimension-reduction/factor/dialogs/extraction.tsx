@@ -486,7 +486,7 @@ export const FactorExtraction = ({
                             <ResizableHandle />
 
                             <ResizablePanel defaultSize={50}>
-                                <div className="flex flex-col gap-2 p-2">
+                                {/* <div className="flex flex-col gap-2 p-2">
                                     <Label className="font-bold">Display</Label>
 
                                     <div className="flex items-center space-x-2">
@@ -500,7 +500,24 @@ export const FactorExtraction = ({
                                         <Label htmlFor="Unrotated">
                                             Unrotated Factor Solution
                                         </Label>
-                                    </div>
+                                    </div> */}
+
+                                    <div className="flex items-center space-x-2">
+    <Checkbox
+        id="Unrotated"
+        // INI ADALAH STATE PENGATURANNYA
+        // Jika true, user ingin tabel muncul. Jika false, user tidak ingin.
+        checked={extractionState.Unrotated} 
+        
+        onCheckedChange={(checked) =>
+            // Mengupdate state saat diklik
+            handleChange("Unrotated", checked)
+        }
+    />
+    <Label htmlFor="Unrotated">
+        Unrotated Factor Solution
+    </Label>
+</div>
 
                                     <div className="flex items-center space-x-2">
                                         <Checkbox
