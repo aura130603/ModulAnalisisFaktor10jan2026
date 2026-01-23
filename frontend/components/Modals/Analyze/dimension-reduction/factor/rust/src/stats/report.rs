@@ -27,6 +27,104 @@ use crate::models::{
     },
 };
 
+// // =========================================================================
+// // 1. Communalities
+// // =========================================================================
+// pub fn calculate_communalities(
+//     data: &AnalysisData,
+//     config: &FactorAnalysisConfig
+// ) -> Result<Communalities, String> {
+
+//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+//     let is_covariance_extraction = config.extraction.covariance;
+
+//     let matrix_type = if is_covariance_extraction {
+//         "covariance"
+//     } else if config.extraction.correlation {
+//         "correlation"
+//     } else {
+//         "correlation" 
+//     };
+
+//     let matrix_for_extraction = calculate_matrix(&data_matrix, matrix_type)?; 
+//     let extraction_result = extract_factors(&matrix_for_extraction, config, &var_names)?;
+
+//     // --- PERBAIKAN LOGIKA SUPPRESS (MENYEMBUNYIKAN KOLOM EXTRACTION) ---
+//     // SPSS menyembunyikan kolom extraction pada ML jika terjadi "Heywood Case" (Communalities >= 1.0)
+//     // atau jika solusi tidak valid.
+
+//     // Tambahkan ExtractionMethod::PrincipalAxisFactoring ke dalam logika suppress.
+//     // Kita suppress jika terjadi Heywood Case (nilai >= 0.9999) atau gagal konvergensi (nilai 0).
+//     // Pada gambar Anda, VAR5 bernilai 1.1712, jadi kondisi c >= 0.9999 akan bernilai TRUE.
+//     // Tambahkan pengecekan .is_nan() dan .is_infinite()
+//     let suppress_extraction = match config.extraction.method {
+//         ExtractionMethod::GeneralizedLeastSquares | ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
+//             extraction_result.communalities.iter().any(|&c| {
+//                 c.is_nan() ||           // Cek jika nilainya NaN (Not a Number)
+//                 c.is_infinite() ||      // Cek jika nilainya Infinity
+//                 c >= 0.9999 ||          // Cek Heywood Case
+//                 c.abs() < 1e-6          // Cek jika nilai 0 (gagal ekstraksi)
+//             })
+//         },
+//         _ => false 
+//     };
+
+//     // --- LOGIKA NILAI INITIAL ---
+//     let initial_values: Vec<f64> = match config.extraction.method {
+//         ExtractionMethod::PrincipalComponents => vec![1.0; var_names.len()],
+//         _ => {
+//             let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
+//             match corr_matrix.try_inverse() {
+//                 Some(inv) => {
+//                     (0..var_names.len())
+//                         .map(|i| {
+//                             let smc = 1.0 - 1.0 / inv[(i, i)];
+//                             if smc < 0.0 { 0.0 } else { smc }
+//                         })
+//                         .collect()
+//                 },
+//                 None => vec![1.0; var_names.len()] 
+//             }
+//         }
+//     };
+
+//     let mut raw_initial = HashMap::new();
+//     let mut rescaled_initial = HashMap::new();
+//     let mut extraction = HashMap::new();
+
+//     let raw_variances = calculate_raw_variances(&data_matrix)?; 
+    
+//     for (i, var_name) in var_names.iter().enumerate() {
+//         // Raw Initial
+//         raw_initial.insert(var_name.clone(), raw_variances[i]);
+
+//         // Rescaled Initial
+//         if i < initial_values.len() {
+//              rescaled_initial.insert(var_name.clone(), initial_values[i]);
+//         } else {
+//              rescaled_initial.insert(var_name.clone(), 1.0);
+//         }
+
+//         // Extraction Communality
+//         // Hanya masukkan ke HashMap jika TIDAK di-suppress.
+//         // Jika suppress == true, Map ini akan kosong.
+//         if !suppress_extraction {
+//             if i < extraction_result.communalities.len() {
+//                 extraction.insert(var_name.clone(), extraction_result.communalities[i]);
+//             }
+//         }
+//     }
+
+//     Ok(Communalities {
+//         raw_initial,
+//         rescaled_initial,
+//         extraction, // Map ini kosong jika ML bermasalah/Heywood case
+//         variable_order: var_names,
+//         extraction_matrix_type: matrix_type.to_string(),
+//     })
+// }
+
+
 // =========================================================================
 // 1. Communalities
 // =========================================================================
@@ -46,68 +144,89 @@ pub fn calculate_communalities(
         "correlation" 
     };
 
+    // 1. Lakukan Ekstraksi Faktor
     let matrix_for_extraction = calculate_matrix(&data_matrix, matrix_type)?; 
     let extraction_result = extract_factors(&matrix_for_extraction, config, &var_names)?;
 
-    // --- PERBAIKAN LOGIKA SUPPRESS (MENYEMBUNYIKAN KOLOM EXTRACTION) ---
-    // SPSS menyembunyikan kolom extraction pada ML jika terjadi "Heywood Case" (Communalities >= 1.0)
-    // atau jika solusi tidak valid.
-
-    // Tambahkan ExtractionMethod::PrincipalAxisFactoring ke dalam logika suppress.
-    // Kita suppress jika terjadi Heywood Case (nilai >= 0.9999) atau gagal konvergensi (nilai 0).
-    // Pada gambar Anda, VAR5 bernilai 1.1712, jadi kondisi c >= 0.9999 akan bernilai TRUE.
-    // Tambahkan pengecekan .is_nan() dan .is_infinite()
+    // --- LOGIKA SUPPRESS (MENYEMBUNYIKAN KOLOM EXTRACTION) ---
+    // Suppress jika terjadi Heywood Case (>= 0.9999), NaN, Infinite, atau gagal (0.0)
+    // Berlaku untuk metode iteratif (PAF, ML, GLS)
     let suppress_extraction = match config.extraction.method {
         ExtractionMethod::GeneralizedLeastSquares | ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
             extraction_result.communalities.iter().any(|&c| {
-                c.is_nan() ||           // Cek jika nilainya NaN (Not a Number)
-                c.is_infinite() ||      // Cek jika nilainya Infinity
+                c.is_nan() ||           // Cek NaN
+                c.is_infinite() ||      // Cek Infinity
                 c >= 0.9999 ||          // Cek Heywood Case
-                c.abs() < 1e-6          // Cek jika nilai 0 (gagal ekstraksi)
+                c.abs() < 1e-6          // Cek Gagal/Zero
             })
         },
         _ => false 
     };
 
-    // --- LOGIKA NILAI INITIAL ---
-    let initial_values: Vec<f64> = match config.extraction.method {
-        ExtractionMethod::PrincipalComponents => vec![1.0; var_names.len()],
-        _ => {
-            let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
-            match corr_matrix.try_inverse() {
-                Some(inv) => {
-                    (0..var_names.len())
-                        .map(|i| {
-                            let smc = 1.0 - 1.0 / inv[(i, i)];
-                            if smc < 0.0 { 0.0 } else { smc }
-                        })
-                        .collect()
-                },
-                None => vec![1.0; var_names.len()] 
-            }
-        }
+    // --- PERSIAPAN DATA INITIAL ---
+    
+    // A. Hitung Varians Murni (Raw Variances) dari data
+    // Digunakan untuk kolom "Raw Initial" pada PCA atau sebagai pengali pada PAF Covariance
+    let raw_variances = calculate_raw_variances(&data_matrix)?; 
+
+    // B. Hitung Squared Multiple Correlations (SMC)
+    // Ini selalu dihitung dari matriks KORELASI, tidak peduli metode ekstraksinya apa.
+    // SMC = 1 - (1 / R_ii_inverse)
+    let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
+    let smc_values: Vec<f64> = match corr_matrix.try_inverse() {
+        Some(inv) => {
+            (0..var_names.len())
+                .map(|i| {
+                    let r_ii = inv[(i, i)];
+                    // Pastikan tidak negatif dan valid
+                    if r_ii > 0.0 { (1.0 - 1.0 / r_ii).max(0.0) } else { 0.0 }
+                })
+                .collect()
+        },
+        None => vec![0.0; var_names.len()] // Jika singular, SMC dianggap 0 atau handling lain (SPSS biasanya kosong/error)
     };
 
     let mut raw_initial = HashMap::new();
     let mut rescaled_initial = HashMap::new();
     let mut extraction = HashMap::new();
 
-    let raw_variances = calculate_raw_variances(&data_matrix)?; 
-    
     for (i, var_name) in var_names.iter().enumerate() {
-        // Raw Initial
-        raw_initial.insert(var_name.clone(), raw_variances[i]);
+        
+        // --- LOGIKA PENGISIAN INITIAL VALUES (MATCH SPSS) ---
+        match config.extraction.method {
+            ExtractionMethod::PrincipalComponents => {
+                // KASUS PCA:
+                // Rescaled Initial: Selalu 1.0
+                // Raw Initial: Varians (jika Covariance) atau 1.0 (jika Correlation)
+                rescaled_initial.insert(var_name.clone(), 1.0);
+                
+                if is_covariance_extraction {
+                    raw_initial.insert(var_name.clone(), raw_variances[i]);
+                } else {
+                    raw_initial.insert(var_name.clone(), 1.0);
+                }
+            },
+            _ => {
+                // KASUS FACTOR ANALYSIS (PAF, ML, ULS, dll):
+                // Rescaled Initial: Nilai SMC
+                let smc = if i < smc_values.len() { smc_values[i] } else { 0.0 };
+                rescaled_initial.insert(var_name.clone(), smc);
 
-        // Rescaled Initial
-        if i < initial_values.len() {
-             rescaled_initial.insert(var_name.clone(), initial_values[i]);
-        } else {
-             rescaled_initial.insert(var_name.clone(), 1.0);
+                // Raw Initial:
+                if is_covariance_extraction {
+                    // PENTING: Untuk Covariance, Initial = SMC * Variance
+                    // Ini yang memperbaiki selisih angka Anda dengan SPSS
+                    let raw_val = smc * raw_variances[i];
+                    raw_initial.insert(var_name.clone(), raw_val);
+                } else {
+                    // Untuk Correlation, Initial = SMC
+                    raw_initial.insert(var_name.clone(), smc);
+                }
+            }
         }
 
-        // Extraction Communality
-        // Hanya masukkan ke HashMap jika TIDAK di-suppress.
-        // Jika suppress == true, Map ini akan kosong.
+        // --- PENGISIAN EXTRACTION VALUES ---
+        // Masukkan hanya jika tidak di-suppress (Heywood case aman)
         if !suppress_extraction {
             if i < extraction_result.communalities.len() {
                 extraction.insert(var_name.clone(), extraction_result.communalities[i]);
@@ -118,11 +237,12 @@ pub fn calculate_communalities(
     Ok(Communalities {
         raw_initial,
         rescaled_initial,
-        extraction, // Map ini kosong jika ML bermasalah/Heywood case
+        extraction, // Map ini kosong jika Heywood case terjadi pada metode iteratif
         variable_order: var_names,
         extraction_matrix_type: matrix_type.to_string(),
     })
 }
+
 
 // =========================================================================
 // 2. Total Variance Explained (Fixed: Using matches! macro)
@@ -369,43 +489,109 @@ pub fn calculate_reproduced_correlations(
     })
 }
 
+// pub fn calculate_reproduced_covariances(
+//     data: &AnalysisData,
+//     config: &FactorAnalysisConfig
+// ) -> Result<ReproducedCovariances, String> {
+//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+//     let cov_matrix = calculate_matrix(&data_matrix, "covariance")?;
+//     let extraction_result = extract_factors(&cov_matrix, config, &var_names)?;
+
+//     let k = extraction_result.n_factors;
+//     let mut reproduced_covariance = HashMap::new();
+//     let mut residual = HashMap::new();
+
+//     let loadings = &extraction_result.loadings;
+//     let loadings_k = if k < loadings.ncols() {
+//         loadings.columns(0, k).into_owned()
+//     } else {
+//         loadings.clone()
+//     };
+
+//     let reproduced_matrix = &loadings_k * loadings_k.transpose();
+
+//     for (i, var_name) in var_names.iter().enumerate() {
+//         let mut var_reproduced = HashMap::new();
+//         let mut var_residual = HashMap::new();
+
+//         for (j, other_var) in var_names.iter().enumerate() {
+//             let repro_cov = if i < reproduced_matrix.nrows() && j < reproduced_matrix.ncols() {
+//                 reproduced_matrix[(i, j)]
+//             } else { 0.0 };
+//             var_reproduced.insert(other_var.clone(), repro_cov);
+
+//             let orig_cov = if i < cov_matrix.nrows() && j < cov_matrix.ncols() {
+//                 cov_matrix[(i, j)]
+//             } else { 0.0 };
+
+//             let residual_cov = orig_cov - repro_cov;
+//             var_residual.insert(other_var.clone(), residual_cov);
+//         }
+//         reproduced_covariance.insert(var_name.clone(), var_reproduced);
+//         residual.insert(var_name.clone(), var_residual);
+//     }
+
+//     Ok(ReproducedCovariances {
+//         reproduced_covariance,
+//         residual,
+//         variable_order: var_names,
+//     })
+// }
+
+
+// file: src/stats/report.rs
+
 pub fn calculate_reproduced_covariances(
     data: &AnalysisData,
     config: &FactorAnalysisConfig
 ) -> Result<ReproducedCovariances, String> {
+    
     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+    
+    // 1. Ambil Matriks Kovarians (Observed)
+    // Pastikan kita selalu mengambil 'covariance' untuk variabel 'orig_cov'
     let cov_matrix = calculate_matrix(&data_matrix, "covariance")?;
+    
+    // 2. Ekstraksi Faktor
+    // extract_factors akan menangani logika internal (konversi ke korelasi lalu balik lagi jika perlu)
     let extraction_result = extract_factors(&cov_matrix, config, &var_names)?;
 
     let k = extraction_result.n_factors;
-    let mut reproduced_covariance = HashMap::new();
-    let mut residual = HashMap::new();
-
     let loadings = &extraction_result.loadings;
+    
+    // Ambil k kolom pertama (Loadings aktif)
     let loadings_k = if k < loadings.ncols() {
         loadings.columns(0, k).into_owned()
     } else {
         loadings.clone()
     };
 
+    // 3. Hitung Reproduced Matrix = L * L'
+    // Hasil dari L*L' ini adalah matriks kovarians yang direproduksi (karena L sudah dalam skala Raw)
     let reproduced_matrix = &loadings_k * loadings_k.transpose();
+
+    let mut reproduced_covariance = HashMap::new();
+    let mut residual = HashMap::new();
 
     for (i, var_name) in var_names.iter().enumerate() {
         let mut var_reproduced = HashMap::new();
         let mut var_residual = HashMap::new();
 
         for (j, other_var) in var_names.iter().enumerate() {
-            let repro_cov = if i < reproduced_matrix.nrows() && j < reproduced_matrix.ncols() {
+            // Nilai Reproduced
+            let repro_val = if i < reproduced_matrix.nrows() && j < reproduced_matrix.ncols() {
                 reproduced_matrix[(i, j)]
             } else { 0.0 };
-            var_reproduced.insert(other_var.clone(), repro_cov);
+            var_reproduced.insert(other_var.clone(), repro_val);
 
-            let orig_cov = if i < cov_matrix.nrows() && j < cov_matrix.ncols() {
+            // Nilai Observed
+            let orig_val = if i < cov_matrix.nrows() && j < cov_matrix.ncols() {
                 cov_matrix[(i, j)]
             } else { 0.0 };
 
-            let residual_cov = orig_cov - repro_cov;
-            var_residual.insert(other_var.clone(), residual_cov);
+            // Nilai Residual = Observed - Reproduced
+            let residual_val = orig_val - repro_val;
+            var_residual.insert(other_var.clone(), residual_val);
         }
         reproduced_covariance.insert(var_name.clone(), var_reproduced);
         residual.insert(var_name.clone(), var_residual);
