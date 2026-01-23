@@ -222,17 +222,19 @@ if (totalVarianceExplained) {
              * 🧩 Component Matrix Result 🧩
              * */
             const componentMatrix = findTable("component_matrix");
-            if (componentMatrix) {
+            const componentMatrixRaw = findRawTable("component_matrix");
+            if (componentMatrix && componentMatrixRaw) {
+                const tableTitle = componentMatrixRaw.title;
                 const componentMatrixId = await addAnalytic(logId, {
-                    title: `Component Matrix`,
+                    title: tableTitle,
                     note: "",
                 });
 
                 await addStatistic(componentMatrixId, {
-                    title: `Component Matrix`,
-                    description: `Component Matrix`,
+                    title: tableTitle,
+                    description: tableTitle,
                     output_data: componentMatrix,
-                    components: `Component Matrix`,
+                    components: tableTitle,
                 });
             }
 
@@ -278,17 +280,21 @@ if (totalVarianceExplained) {
             const rotatedComponentMatrix = findTable(
                 "rotated_component_matrix"
             );
-            if (rotatedComponentMatrix) {
+            const rotatedComponentMatrixRaw = findRawTable(
+                "rotated_component_matrix"
+            );
+            if (rotatedComponentMatrix && rotatedComponentMatrixRaw) {
+                const tableTitle = rotatedComponentMatrixRaw.title;
                 const rotatedComponentMatrixId = await addAnalytic(logId, {
-                    title: `Rotated Component Matrix`,
+                    title: tableTitle,
                     note: "",
                 });
 
                 await addStatistic(rotatedComponentMatrixId, {
-                    title: `Rotated Component Matrix`,
-                    description: `Rotated Component Matrix`,
+                    title: tableTitle,
+                    description: tableTitle,
                     output_data: rotatedComponentMatrix,
-                    components: `Rotated Component Matrix`,
+                    components: tableTitle,
                 });
             }
 
@@ -298,20 +304,24 @@ if (totalVarianceExplained) {
             const componentTransformationMatrix = findTable(
                 "component_transformation_matrix"
             );
-            if (componentTransformationMatrix) {
+            const componentTransformationMatrixRaw = findRawTable(
+                "component_transformation_matrix"
+            );
+            if (componentTransformationMatrix && componentTransformationMatrixRaw) {
+                const tableTitle = componentTransformationMatrixRaw.title;
                 const componentTransformationMatrixId = await addAnalytic(
                     logId,
                     {
-                        title: `Component Transformation Matrix`,
+                        title: tableTitle,
                         note: "",
                     }
                 );
 
                 await addStatistic(componentTransformationMatrixId, {
-                    title: `Component Transformation Matrix`,
-                    description: `Component Transformation Matrix`,
+                    title: tableTitle,
+                    description: tableTitle,
                     output_data: componentTransformationMatrix,
-                    components: `Component Transformation Matrix`,
+                    components: tableTitle,
                 });
             }
 
@@ -357,20 +367,24 @@ if (totalVarianceExplained) {
             const componentCorrelationMatrix = findTable(
                 "component_correlation_matrix"
             );
-            if (componentCorrelationMatrix) {
+            const componentCorrelationMatrixRaw = findRawTable(
+                "component_correlation_matrix"
+            );
+            if (componentCorrelationMatrix && componentCorrelationMatrixRaw) {
+                const tableTitle = componentCorrelationMatrixRaw.title;
                 const componentCorrelationMatrixId = await addAnalytic(
                     logId,
                     {
-                        title: `Component Correlation Matrix`,
+                        title: tableTitle,
                         note: "",
                     }
                 );
 
                 await addStatistic(componentCorrelationMatrixId, {
-                    title: `Component Correlation Matrix`,
-                    description: `Component Correlation Matrix`,
+                    title: tableTitle,
+                    description: tableTitle,
                     output_data: componentCorrelationMatrix,
-                    components: `Component Correlation Matrix`,
+                    components: tableTitle,
                 });
             }
 
@@ -380,20 +394,24 @@ if (totalVarianceExplained) {
             const componentScoreCoefficientMatrix = findTable(
                 "component_score_coefficient_matrix"
             );
-            if (componentScoreCoefficientMatrix) {
+            const componentScoreCoefficientMatrixRaw = findRawTable(
+                "component_score_coefficient_matrix"
+            );
+            if (componentScoreCoefficientMatrix && componentScoreCoefficientMatrixRaw) {
+                const tableTitle = componentScoreCoefficientMatrixRaw.title;
                 const componentScoreCoefficientMatrixId = await addAnalytic(
                     logId,
                     {
-                        title: `Component Score Coefficient Matrix`,
+                        title: tableTitle,
                         note: "",
                     }
                 );
 
                 await addStatistic(componentScoreCoefficientMatrixId, {
-                    title: `Component Score Coefficient Matrix`,
-                    description: `Component Score Coefficient Matrix`,
+                    title: tableTitle,
+                    description: tableTitle,
                     output_data: componentScoreCoefficientMatrix,
-                    components: `Component Score Coefficient Matrix`,
+                    components: tableTitle,
                 });
             }
 
@@ -405,20 +423,24 @@ if (totalVarianceExplained) {
             const componentScoreCovarianceMatrix = findTable(
                 "component_score_covariance_matrix"
             );
-            if (componentScoreCovarianceMatrix) {
+            const componentScoreCovarianceMatrixRaw = findRawTable(
+                "component_score_covariance_matrix"
+            );
+            if (componentScoreCovarianceMatrix && componentScoreCovarianceMatrixRaw) {
+                const tableTitle = componentScoreCovarianceMatrixRaw.title;
                 const componentScoreCovarianceMatrixId = await addAnalytic(
                     logId,
                     {
-                        title: `Component Score Covariance Matrix`,
+                        title: tableTitle,
                         note: "",
                     }
                 );
 
                 await addStatistic(componentScoreCovarianceMatrixId, {
-                    title: `Component Score Covariance Matrix`,
-                    description: `Component Score Covariance Matrix`,
+                    title: tableTitle,
+                    description: tableTitle,
                     output_data: componentScoreCovarianceMatrix,
-                    components: `Component Score Covariance Matrix`,
+                    components: tableTitle,
                 });
             }
 

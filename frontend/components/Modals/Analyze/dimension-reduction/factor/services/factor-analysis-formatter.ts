@@ -6,8 +6,24 @@
 
 import {formatDisplayNumber} from "@/hooks/useFormatter";
 import {ResultJson, Table} from "@/types/Table";
+import {FactorType} from "@/components/Modals/Analyze/dimension-reduction/factor/types/factor";
 
-        export function transformFactorAnalysisResult(data: any): ResultJson & {
+// Helper function untuk mapping value extraction method ke nama tampilan
+const EXTRACTION_METHOD_MAP: Record<string, string> = {
+    "PrincipalComp": "Principal Component Analysis",
+    "UnweightLeastSqr": "Unweighted Least Squares",
+    "GeneralizedLeastSqr": "Generalized Least Squares",
+    "MaxLikelihood": "Maximum Likelihood",
+    "PrincipalAxisFactoring": "Principal Axis Factoring",
+    "AlphaFactoring": "Alpha Factoring",
+    "ImageFactoring": "Image Factoring",
+};
+
+function getExtractionMethodDisplayName(methodValue: string): string {
+    return EXTRACTION_METHOD_MAP[methodValue] || methodValue;
+}
+
+        export function transformFactorAnalysisResult(data: any, configData?: FactorType): ResultJson & {
             screePlotChart?: any,
             loadingPlotChart?: any,
             factorScores?: any[] } {
@@ -16,6 +32,11 @@ import {ResultJson, Table} from "@/types/Table";
     };
 
     console.log("Transforming factor analysis result data:", data);
+    console.log("ConfigData extraction method:", configData?.extraction?.Method);
+
+    // Ambil metode ekstraksi dari configData (prioritas) atau dari data WASM (fallback)
+    const extractionMethod = configData?.extraction?.Method || data?.extraction_method || "PrincipalComp";
+    console.log("Using extraction method:", extractionMethod);
 
     if (!data) {
         console.error("No data provided to transformFactorAnalysisResult");
@@ -408,7 +429,8 @@ import {ResultJson, Table} from "@/types/Table";
             table.rows.push(rowData);
         });
 
-        table.rows.push({ rowHeader: [`Extraction Method: ${data.extraction_method || 'Maximum Likelihood'}.`] });
+        const methodDisplayNameComm = getExtractionMethodDisplayName(extractionMethod);
+        table.rows.push({ rowHeader: [`Extraction Method: ${methodDisplayNameComm}.`] });
         resultJson.tables.push(table);
     }
 
@@ -530,7 +552,9 @@ import {ResultJson, Table} from "@/types/Table";
                     table.rows.push(rowData);
                 }
 
-                table.rows.push({ rowHeader: ["Extraction Method: Principal Component Analysis."] });
+                // Footer dinamis berdasarkan metode ekstraksi
+                const methodDisplayName = getExtractionMethodDisplayName(extractionMethod);
+                table.rows.push({ rowHeader: [`Extraction Method: ${methodDisplayName}.`] });
                 resultJson.tables.push(table);
             }
         } catch (error) {
@@ -611,9 +635,13 @@ import {ResultJson, Table} from "@/types/Table";
 
         // --- LOGIKA DINAMIS (BARU) ---
         // Cek metode ekstraksi untuk menentukan Label Judul & Header
-        const method = data.extraction_method || "Principal Component Analysis";
+        // Value dari frontend: "PrincipalComp", "UnweightLeastSqr", "MaxLikelihood", dll.
+        const methodValue = extractionMethod;
         // Jika metode BUKAN PCA, SPSS menggunakan istilah "Factor", jika PCA gunakan "Component"
-        const isPCA = method === "Principal Component Analysis";
+        const isPCA = methodValue === "PrincipalComp";
+        
+        // Mapping value ke nama tampilan untuk footer
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
         
         // 1. Tentukan Judul Tabel (Factor Matrix vs Component Matrix)
         // Tambahkan superscript 'a' (ᵃ) jika bukan PCA, sesuai style SPSS
@@ -659,7 +687,7 @@ import {ResultJson, Table} from "@/types/Table";
         
         // Footer 1: Nama Metode
         table.rows.push({
-            rowHeader: [`Extraction Method: ${method}.`],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
 
         // Footer 2: Keterangan 'a' (Iterasi)
@@ -746,9 +774,11 @@ import {ResultJson, Table} from "@/types/Table";
             table.rows.push(rowData);
         });
 
-        // Add footnotes
+        // Add footnotes - Dinamis berdasarkan metode ekstraksi
+        const methodValueRC = extractionMethod;
+        const methodDisplayNameRC = getExtractionMethodDisplayName(methodValueRC);
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayNameRC}.`],
         });
         table.rows.push({
             rowHeader: ["a. Reproduced communalities"],
@@ -824,9 +854,11 @@ import {ResultJson, Table} from "@/types/Table";
             table.rows.push(rowData);
         });
 
-        // Add footnotes
+        // Add footnotes - Dinamis berdasarkan metode ekstraksi
+        const methodValueRCov = extractionMethod;
+        const methodDisplayNameRCov = getExtractionMethodDisplayName(methodValueRCov);
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayNameRCov}.`],
         });
         table.rows.push({
             rowHeader: ["a. Reproduced communalities"],
@@ -845,13 +877,20 @@ import {ResultJson, Table} from "@/types/Table";
         const extractedComponents =
             data.rotated_component_matrix.components[0]?.values.length || 0;
 
+        // Logika dinamis untuk menentukan nama tabel dan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
+        const tableTitle = isPCA ? "Rotated Component Matrixᵃ" : "Rotated Factor Matrixᵃ";
+        const columnGroupHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "rotated_component_matrix",
-            title: "Rotated Component Matrix",
+            title: tableTitle,
             columnHeaders: [
                 { header: "", key: "var" },
                 {
-                    header: "Component",
+                    header: columnGroupHeader,
                     key: "component",
                     children: Array.from(
                         { length: extractedComponents },
@@ -899,7 +938,7 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add footnotes
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
         table.rows.push({
             rowHeader: ["Rotation Method: Varimax with Kaiser Normalization."],
@@ -916,11 +955,18 @@ import {ResultJson, Table} from "@/types/Table";
         const components =
             data.component_transformation_matrix.components.length;
 
+        // Logika dinamis untuk menentukan nama tabel dan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
+        const tableTitle = isPCA ? "Component Transformation Matrix" : "Factor Transformation Matrix";
+        const columnRowHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "component_transformation_matrix",
-            title: "Component Transformation Matrix",
+            title: tableTitle,
             columnHeaders: [
-                { header: "Component", key: "component" },
+                { header: columnRowHeader, key: "component" },
                 ...Array.from({ length: components }, (_, i) => ({
                     header: (i + 1).toString(),
                     key: `component_${i + 1}`,
@@ -946,7 +992,7 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add footnotes
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
         table.rows.push({
             rowHeader: ["Rotation Method: Varimax with Kaiser Normalization."],
@@ -960,13 +1006,19 @@ import {ResultJson, Table} from "@/types/Table";
         const extractedComponents =
             data.pattern_matrix.components[0]?.values.length || 0;
 
+        // Logika dinamis untuk menentukan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
+        const columnGroupHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "pattern_matrix",
-            title: "Pattern Matrix",
+            title: "Pattern Matrixᵃ",
             columnHeaders: [
                 { header: "", key: "var" },
                 {
-                    header: "Component",
+                    header: columnGroupHeader,
                     key: "component",
                     children: Array.from(
                         { length: extractedComponents },
@@ -1012,7 +1064,7 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add footnotes
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
         table.rows.push({
             rowHeader: ["Rotation Method: Promax with Kaiser Normalization."],
@@ -1029,13 +1081,19 @@ import {ResultJson, Table} from "@/types/Table";
         const extractedComponents =
             data.structure_matrix.components[0]?.values.length || 0;
 
+        // Logika dinamis untuk menentukan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
+        const columnGroupHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "structure_matrix",
             title: "Structure Matrix",
             columnHeaders: [
                 { header: "", key: "var" },
                 {
-                    header: "Component",
+                    header: columnGroupHeader,
                     key: "component",
                     children: Array.from(
                         { length: extractedComponents },
@@ -1072,7 +1130,7 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add footnotes
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
         table.rows.push({
             rowHeader: ["Rotation Method: Promax with Kaiser Normalization."],
@@ -1086,11 +1144,17 @@ import {ResultJson, Table} from "@/types/Table";
         const components =
             data.component_correlation_matrix.correlations.length;
 
+        // Logika dinamis untuk menentukan nama tabel dan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const tableTitle = isPCA ? "Component Correlation Matrix" : "Factor Correlation Matrix";
+        const columnRowHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "component_correlation_matrix",
-            title: "Component Correlation Matrix",
+            title: tableTitle,
             columnHeaders: [
-                { header: "Component", key: "component" },
+                { header: columnRowHeader, key: "component" },
                 ...Array.from({ length: components }, (_, i) => ({
                     header: (i + 1).toString(),
                     key: `component_${i + 1}`,
@@ -1123,13 +1187,20 @@ import {ResultJson, Table} from "@/types/Table";
             data.component_score_coefficient_matrix.components[0]?.values
                 .length || 0;
 
+        // Logika dinamis untuk menentukan nama tabel dan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
+        const tableTitle = isPCA ? "Component Score Coefficient Matrix" : "Factor Score Coefficient Matrix";
+        const columnGroupHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "component_score_coefficient_matrix",
-            title: "Component Score Coefficient Matrix",
+            title: tableTitle,
             columnHeaders: [
                 { header: "", key: "var" },
                 {
-                    header: "Component",
+                    header: columnGroupHeader,
                     key: "component",
                     children: Array.from(
                         { length: extractedComponents },
@@ -1160,7 +1231,7 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add footnotes
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
         table.rows.push({
             rowHeader: ["Rotation Method: Varimax with Kaiser Normalization."],
@@ -1174,11 +1245,18 @@ import {ResultJson, Table} from "@/types/Table";
         const components =
             data.component_score_covariance_matrix.components.length;
 
+        // Logika dinamis untuk menentukan nama tabel dan header
+        const methodValue = extractionMethod;
+        const isPCA = methodValue === "PrincipalComp";
+        const methodDisplayName = getExtractionMethodDisplayName(methodValue);
+        const tableTitle = isPCA ? "Component Score Covariance Matrix" : "Factor Score Covariance Matrix";
+        const columnRowHeader = isPCA ? "Component" : "Factor";
+
         const table: Table = {
             key: "component_score_covariance_matrix",
-            title: "Component Score Covariance Matrix",
+            title: tableTitle,
             columnHeaders: [
-                { header: "Component", key: "component" },
+                { header: columnRowHeader, key: "component" },
                 ...Array.from({ length: components }, (_, i) => ({
                     header: (i + 1).toString(),
                     key: `component_${i + 1}`,
@@ -1204,7 +1282,7 @@ import {ResultJson, Table} from "@/types/Table";
 
         // Add footnotes
         table.rows.push({
-            rowHeader: ["Extraction Method: Principal Component Analysis."],
+            rowHeader: [`Extraction Method: ${methodDisplayName}.`],
         });
         table.rows.push({
             rowHeader: ["Rotation Method: Varimax with Kaiser Normalization."],

@@ -80,7 +80,8 @@ export async function analyzeFactor({
         console.log("WASM results", results);
         console.log("WASM error", error);
 
-        const formattedResults = transformFactorAnalysisResult(results);
+        // Teruskan configData ke formatter agar bisa mengakses extraction.Method
+        const formattedResults = transformFactorAnalysisResult(results, configData);
         console.log("formattedResults", formattedResults);
 
         /*
