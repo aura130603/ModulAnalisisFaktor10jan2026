@@ -539,6 +539,9 @@ pub fn calculate_reproduced_correlations(
 // }
 
 
+
+
+
 // file: src/stats/report.rs
 
 pub fn calculate_reproduced_covariances(
@@ -549,11 +552,9 @@ pub fn calculate_reproduced_covariances(
     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
     
     // 1. Ambil Matriks Kovarians (Observed)
-    // Pastikan kita selalu mengambil 'covariance' untuk variabel 'orig_cov'
     let cov_matrix = calculate_matrix(&data_matrix, "covariance")?;
     
     // 2. Ekstraksi Faktor
-    // extract_factors akan menangani logika internal (konversi ke korelasi lalu balik lagi jika perlu)
     let extraction_result = extract_factors(&cov_matrix, config, &var_names)?;
 
     let k = extraction_result.n_factors;
@@ -566,9 +567,24 @@ pub fn calculate_reproduced_covariances(
         loadings.clone()
     };
 
-    // 3. Hitung Reproduced Matrix = L * L'
-    // Hasil dari L*L' ini adalah matriks kovarians yang direproduksi (karena L sudah dalam skala Raw)
-    let reproduced_matrix = &loadings_k * loadings_k.transpose();
+    // 3. Hitung REPRODUCED TABLE (untuk ditampilkan)
+    // Formula R: reproduced_table <- Lambda %*% t(Lambda)
+    // PENTING: TIDAK override diagonal!
+    let reproduced_table = &loadings_k * loadings_k.transpose();
+
+    // 4. Hitung REPRODUCED MODEL (untuk residual)
+    // Formula R: reproduced_model <- reproduced_table + Psi
+    // Di mana Psi = diag(uniquenesses) = diag(Variance - Communality)
+    let n = var_names.len();
+    let reproduced_model = DMatrix::from_fn(n, n, |i, j| {
+        if i == j {
+            // Diagonal reproduced_model = Communality + Uniqueness = Variance
+            // Ini membuat residual diagonal = 0
+            cov_matrix[(i, i)]
+        } else {
+            reproduced_table[(i, j)]
+        }
+    });
 
     let mut reproduced_covariance = HashMap::new();
     let mut residual = HashMap::new();
@@ -578,19 +594,24 @@ pub fn calculate_reproduced_covariances(
         let mut var_residual = HashMap::new();
 
         for (j, other_var) in var_names.iter().enumerate() {
-            // Nilai Reproduced
-            let repro_val = if i < reproduced_matrix.nrows() && j < reproduced_matrix.ncols() {
-                reproduced_matrix[(i, j)]
+            // Nilai Reproduced TABLE (untuk ditampilkan)
+            let repro_val = if i < reproduced_table.nrows() && j < reproduced_table.ncols() {
+                reproduced_table[(i, j)]
             } else { 0.0 };
             var_reproduced.insert(other_var.clone(), repro_val);
 
-            // Nilai Observed
+            // Nilai Observed (Data Asli)
             let orig_val = if i < cov_matrix.nrows() && j < cov_matrix.ncols() {
                 cov_matrix[(i, j)]
             } else { 0.0 };
 
-            // Nilai Residual = Observed - Reproduced
-            let residual_val = orig_val - repro_val;
+            // Nilai Reproduced MODEL (untuk residual)
+            let repro_model_val = if i < reproduced_model.nrows() && j < reproduced_model.ncols() {
+                reproduced_model[(i, j)]
+            } else { 0.0 };
+
+            // Nilai Residual = Observed - Reproduced Model
+            let residual_val = orig_val - repro_model_val;
             var_residual.insert(other_var.clone(), residual_val);
         }
         reproduced_covariance.insert(var_name.clone(), var_reproduced);
