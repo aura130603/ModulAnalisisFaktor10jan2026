@@ -119,259 +119,636 @@ pub fn extract_principal_components(
 
 
 
+// pub fn extract_principal_axis_factoring(
+//     matrix: &DMatrix<f64>,
+//     config: &FactorAnalysisConfig,
+//     var_names: &[String]
+// ) -> Result<ExtractionResult, String> {
+//     let n_vars = matrix.nrows();
+
+//     // 1. TENTUKAN JUMLAH FAKTOR DARI ORIGINAL MATRIX
+//     let initial_eigen = matrix.clone().symmetric_eigen();
+//     let mut initial_eigenvalues: Vec<f64> = initial_eigen.eigenvalues.into_iter().cloned().collect();
+//     initial_eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+    
+//     let n_factors = determine_factors_to_retain(&initial_eigenvalues, config);
+//     if n_factors == 0 { return Err("No factors retainable".to_string()); }
+
+//     // =========================================================================
+//     // UNTUK COVARIANCE ANALYSIS: Iterate langsung pada COVARIANCE matrix!
+//     // SPSS dan R (psych::fa dengan covar=TRUE) bekerja langsung pada covariance matrix
+//     // BUKAN mengkonversi ke correlation lalu scale kembali
+//     // =========================================================================
+    
+//     if config.extraction.covariance {
+//         // --- COVARIANCE CASE: Iterate langsung pada covariance matrix ---
+        
+//         // Initial communalities = diagonal variance (SPSS default untuk covariance)
+//         let mut communalities: Vec<f64> = (0..n_vars)
+//             .map(|i| matrix[(i, i)])  // Gunakan variance sebagai initial
+//             .collect();
+        
+//         // Matriks kerja = covariance matrix dengan diagonal = communalities
+//         let mut work_matrix = matrix.clone();
+        
+//         let max_iterations = if config.extraction.max_iter > 0 { 
+//             config.extraction.max_iter as usize 
+//         } else { 
+//             25 
+//         };
+        
+//         // PERBAIKAN: Gunakan RELATIVE convergence criterion untuk covariance
+//         // Karena nilai covariance bisa sangat besar, kita gunakan relative change
+//         // SPSS menggunakan relative convergence: max_change / max_communality < criterion
+//         let convergence_criterion = 0.001;
+        
+//         let mut final_loadings = DMatrix::zeros(n_vars, n_factors);
+        
+//         for _iteration in 1..=max_iterations {
+//             // Eigenvalue decomposition
+//             let eigen = work_matrix.clone().symmetric_eigen();
+//             let mut indices: Vec<usize> = (0..n_vars).collect();
+//             indices.sort_by(|&i, &j| {
+//                 eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i])
+//                     .unwrap_or(std::cmp::Ordering::Equal)
+//             });
+            
+//             let sorted_eigenvalues: Vec<f64> = indices.iter()
+//                 .map(|&i| eigen.eigenvalues[i])
+//                 .collect();
+            
+//             let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
+//             for i in 0..n_vars {
+//                 for j in 0..n_vars {
+//                     sorted_eigenvectors[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+//                 }
+//             }
+            
+//             // Hitung loadings: L = V * sqrt(λ)
+//             let mut loadings = DMatrix::zeros(n_vars, n_factors);
+//             for i in 0..n_vars {
+//                 for j in 0..n_factors {
+//                     if sorted_eigenvalues[j] > 0.0 {
+//                         loadings[(i, j)] = sorted_eigenvectors[(i, j)] * sorted_eigenvalues[j].sqrt();
+//                     }
+//                 }
+//             }
+            
+//             // Hitung communalities baru = sum of squared loadings
+//             let mut new_communalities = vec![0.0; n_vars];
+//             for i in 0..n_vars {
+//                 let mut sum_sq = 0.0;
+//                 for j in 0..n_factors {
+//                     sum_sq += loadings[(i, j)].powi(2);
+//                 }
+//                 new_communalities[i] = sum_sq;
+//             }
+            
+//             // Cek konvergensi menggunakan RELATIVE change
+//             // Ini penting untuk covariance matrix dengan nilai besar
+//             let mut max_relative_change = 0.0;
+//             for i in 0..n_vars {
+//                 let old_val = communalities[i];
+//                 let new_val = new_communalities[i];
+//                 let relative_change = if old_val.abs() > 1e-10 {
+//                     ((new_val - old_val) / old_val).abs()
+//                 } else {
+//                     (new_val - old_val).abs()
+//                 };
+//                 if relative_change > max_relative_change {
+//                     max_relative_change = relative_change;
+//                 }
+//             }
+            
+//             communalities = new_communalities;
+            
+//             // Update diagonal work_matrix dengan communalities baru
+//             for i in 0..n_vars {
+//                 work_matrix[(i, i)] = communalities[i];
+//             }
+            
+//             final_loadings = loadings;
+            
+//             // Gunakan relative change untuk konvergensi
+//             if max_relative_change < convergence_criterion { 
+//                 break; 
+//             }
+//         }
+        
+//         // Hitung eigenvalues dan variance explained
+//         let total_variance: f64 = matrix.diagonal().sum();
+//         let mut result_eigenvalues = Vec::new();
+//         let mut explained_variance = Vec::new();
+        
+//         for j in 0..n_factors {
+//             let mut sum_sq_loadings = 0.0;
+//             for i in 0..n_vars {
+//                 sum_sq_loadings += final_loadings[(i, j)].powi(2);
+//             }
+//             result_eigenvalues.push(sum_sq_loadings);
+//             let percent = if total_variance > 0.0 { 
+//                 (sum_sq_loadings / total_variance) * 100.0 
+//             } else { 
+//                 0.0 
+//             };
+//             explained_variance.push(percent);
+//         }
+        
+//         let mut cumulative_variance = vec![0.0; n_factors];
+//         let mut cum_sum = 0.0;
+//         for (i, &var) in explained_variance.iter().enumerate() {
+//             cum_sum += var;
+//             cumulative_variance[i] = cum_sum;
+//         }
+        
+//         return Ok(ExtractionResult {
+//             loadings: final_loadings,
+//             eigenvalues: result_eigenvalues,
+//             communalities, // Sudah dalam skala covariance
+//             explained_variance,
+//             cumulative_variance,
+//             n_factors,
+//             var_names: var_names.to_vec(),
+//         });
+//     }
+    
+//     // =========================================================================
+//     // UNTUK CORRELATION ANALYSIS: Iterate pada correlation matrix
+//     // =========================================================================
+    
+//     // Initial communalities = max absolute correlation (SPSS default, SMC=FALSE)
+//     let mut communalities = vec![0.0; n_vars];
+//     for i in 0..n_vars {
+//         let mut max_r = 0.0;
+//         for j in 0..n_vars {
+//             if i != j {
+//                 let r_ij = matrix[(i, j)].abs();
+//                 if r_ij > max_r { 
+//                     max_r = r_ij; 
+//                 }
+//             }
+//         }
+//         communalities[i] = max_r;
+//     }
+
+//     // ITERASI PAF untuk correlation matrix
+//     let mut r_matrix = matrix.clone();
+//     for i in 0..n_vars { r_matrix[(i, i)] = communalities[i]; }
+
+//     let max_iterations = if config.extraction.max_iter > 0 { config.extraction.max_iter as usize } else { 25 };
+//     let convergence_criterion = 0.001; 
+//     let mut final_loadings = DMatrix::zeros(n_vars, n_factors); 
+
+//     for _iteration in 1..=max_iterations {
+//         let eigen = r_matrix.clone().symmetric_eigen();
+//         let mut indices: Vec<usize> = (0..n_vars).collect();
+//         indices.sort_by(|&i, &j| eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i]).unwrap_or(std::cmp::Ordering::Equal));
+
+//         let sorted_eigenvalues: Vec<f64> = indices.iter().map(|&i| eigen.eigenvalues[i]).collect();
+//         let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
+//         for i in 0..n_vars {
+//             for j in 0..n_vars {
+//                 sorted_eigenvectors[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+//             }
+//         }
+
+//         let mut loadings = DMatrix::zeros(n_vars, n_factors);
+//         for i in 0..n_vars {
+//             for j in 0..n_factors {
+//                 if sorted_eigenvalues[j] > 0.0 {
+//                     loadings[(i, j)] = sorted_eigenvectors[(i, j)] * sorted_eigenvalues[j].sqrt();
+//                 }
+//             }
+//         }
+
+//         let mut new_communalities = vec![0.0; n_vars];
+//         for i in 0..n_vars {
+//             let mut sum_sq = 0.0;
+//             for j in 0..n_factors {
+//                 sum_sq += loadings[(i, j)].powi(2);
+//             }
+            
+//             // HEYWOOD CASE HANDLING: Clamp instead of error (like SPSS)
+//             // SPSS clamps communalities to just below 1.0 instead of terminating
+//             if sum_sq >= 0.9999 {
+//                 sum_sq = 0.9999;
+//             }
+//             if sum_sq < 0.0 {
+//                 sum_sq = 0.0;
+//             }
+//             new_communalities[i] = sum_sq; 
+//         }
+
+//         let mut max_change = 0.0;
+//         for i in 0..n_vars {
+//             let change = (new_communalities[i] - communalities[i]).abs();
+//             if change > max_change { max_change = change; }
+//         }
+
+//         communalities = new_communalities;
+//         for i in 0..n_vars { r_matrix[(i, i)] = communalities[i]; }
+//         final_loadings = loadings;
+
+//         if max_change < convergence_criterion { break; }
+//     }
+
+//     // POST-PROCESSING untuk correlation analysis
+//     let total_variance_corr = n_vars as f64;
+//     let mut result_eigenvalues = Vec::new();
+//     let mut explained_variance = Vec::new();
+    
+//     for j in 0..n_factors {
+//         let mut sum_sq_loadings = 0.0;
+//         for i in 0..n_vars {
+//             if j < final_loadings.ncols() {
+//                 sum_sq_loadings += final_loadings[(i, j)].powi(2);
+//             }
+//         }
+//         result_eigenvalues.push(sum_sq_loadings);
+//         let percent = if total_variance_corr > 0.0 { 
+//             (sum_sq_loadings / total_variance_corr) * 100.0 
+//         } else { 
+//             0.0 
+//         };
+//         explained_variance.push(percent);
+//     }
+
+//     let mut cumulative_variance = vec![0.0; n_factors];
+//     let mut cum_sum = 0.0;
+//     for (i, &var) in explained_variance.iter().enumerate() {
+//         cum_sum += var;
+//         cumulative_variance[i] = cum_sum;
+//     }
+
+//     Ok(ExtractionResult {
+//         loadings: final_loadings,
+//         eigenvalues: result_eigenvalues,
+//         communalities,
+//         explained_variance,
+//         cumulative_variance,
+//         n_factors,
+//         var_names: var_names.to_vec(),
+//     })
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 pub fn extract_principal_axis_factoring(
     matrix: &DMatrix<f64>,
     config: &FactorAnalysisConfig,
     var_names: &[String]
 ) -> Result<ExtractionResult, String> {
     let n_vars = matrix.nrows();
-
-    // 1. TENTUKAN JUMLAH FAKTOR DARI ORIGINAL MATRIX
-    let initial_eigen = matrix.clone().symmetric_eigen();
-    let mut initial_eigenvalues: Vec<f64> = initial_eigen.eigenvalues.into_iter().cloned().collect();
-    initial_eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
     
-    let n_factors = determine_factors_to_retain(&initial_eigenvalues, config);
-    if n_factors == 0 { return Err("No factors retainable".to_string()); }
-
     // =========================================================================
-    // UNTUK COVARIANCE ANALYSIS: Iterate langsung pada COVARIANCE matrix!
-    // SPSS dan R (psych::fa dengan covar=TRUE) bekerja langsung pada covariance matrix
-    // BUKAN mengkonversi ke correlation lalu scale kembali
+    // JALUR 1: ANALYSIS = COVARIANCE (SPSS Logic)
     // =========================================================================
-    
     if config.extraction.covariance {
-        // --- COVARIANCE CASE: Iterate langsung pada covariance matrix ---
         
-        // Initial communalities = diagonal variance (SPSS default untuk covariance)
-        // Atau bisa menggunakan max absolute covariance
-        let mut communalities: Vec<f64> = (0..n_vars)
-            .map(|i| matrix[(i, i)])  // Gunakan variance sebagai initial
-            .collect();
+        // 1. Hitung Varians & Standar Deviasi (untuk konversi SMC)
+        let mut variances = vec![0.0; n_vars];
+        let mut std_devs = vec![0.0; n_vars];
+        for i in 0..n_vars {
+            variances[i] = matrix[(i, i)];
+            if variances[i] <= 0.0 { return Err(format!("Var {} has <= 0 variance", i)); }
+            std_devs[i] = variances[i].sqrt();
+        }
+
+        // 2. Buat Correlation Matrix SEMENTARA hanya untuk hitung SMC
+        let mut temp_corr = DMatrix::zeros(n_vars, n_vars);
+        for i in 0..n_vars {
+            for j in 0..n_vars {
+                temp_corr[(i, j)] = matrix[(i, j)] / (std_devs[i] * std_devs[j]);
+            }
+        }
+
+        // 3. Hitung Initial Communalities (SMC * Variance)
+        let mut communalities = vec![0.0; n_vars];
         
-        // Matriks kerja = covariance matrix dengan diagonal = communalities
-        let mut work_matrix = matrix.clone();
-        
-        let max_iterations = if config.extraction.max_iter > 0 { 
-            config.extraction.max_iter as usize 
-        } else { 
-            25 
-        };
-        let convergence_criterion = 0.001;
-        let mut final_loadings = DMatrix::zeros(n_vars, n_factors);
-        
-        for _iteration in 1..=max_iterations {
-            // Eigenvalue decomposition
-            let eigen = work_matrix.clone().symmetric_eigen();
-            let mut indices: Vec<usize> = (0..n_vars).collect();
-            indices.sort_by(|&i, &j| {
-                eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i])
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-            
-            let sorted_eigenvalues: Vec<f64> = indices.iter()
-                .map(|&i| eigen.eigenvalues[i])
-                .collect();
-            
-            let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
-            for i in 0..n_vars {
-                for j in 0..n_vars {
-                    sorted_eigenvectors[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+        // FIX ERROR DISINI: Gunakan temp_corr.clone() agar temp_corr asli tidak hilang
+        match temp_corr.clone().try_inverse() {
+            Some(inv) => {
+                for i in 0..n_vars {
+                    let r_ii = inv[(i, i)];
+                    let smc = if r_ii > 1e-12 { 1.0 - (1.0 / r_ii) } else { 0.0 };
+                    let safe_smc = smc.max(0.0).min(0.9999);
+                    
+                    // Scaling kembali ke unit Covariance
+                    communalities[i] = safe_smc * variances[i]; 
+                }
+            },
+            None => {
+                // Fallback: Max correlation * Variance
+                // temp_corr masih bisa diakses di sini karena di atas pakai clone()
+                for i in 0..n_vars {
+                    let mut max_r = 0.0;
+                    for j in 0..n_vars {
+                        if i != j {
+                            let r = temp_corr[(i, j)].abs();
+                            if r > max_r { max_r = r; }
+                        }
+                    }
+                    communalities[i] = max_r * variances[i];
                 }
             }
+        }
+
+        // 4. Tentukan Jumlah Faktor (Berdasarkan Eigenvalue Covariance Asli)
+        // Gunakan clone() agar matrix asli aman
+        let eigen_check = matrix.clone().symmetric_eigen();
+        let mut init_evals: Vec<f64> = eigen_check.eigenvalues.iter().cloned().collect();
+        init_evals.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+        let n_factors = determine_factors_to_retain(&init_evals, config);
+        
+        if n_factors == 0 { return Err("No factors retainable".to_string()); }
+
+        // 5. ITERASI (Langsung pada Covariance Matrix)
+        let max_iter = if config.extraction.max_iter > 0 { config.extraction.max_iter as usize } else { 25 };
+        let mut final_loadings = DMatrix::zeros(n_vars, n_factors);
+        let mut work_matrix = matrix.clone(); 
+
+        for _iter in 0..max_iter {
+            // Update diagonal work_matrix
+            for i in 0..n_vars {
+                work_matrix[(i, i)] = communalities[i];
+            }
+
+            // Eigen Decomposition (Work matrix consumed, so clone it)
+            let eigen = work_matrix.clone().symmetric_eigen();
             
-            // Hitung loadings: L = V * sqrt(λ)
-            let mut loadings = DMatrix::zeros(n_vars, n_factors);
+            let mut indices: Vec<usize> = (0..n_vars).collect();
+            indices.sort_by(|&i, &j| 
+                eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i]).unwrap_or(std::cmp::Ordering::Equal)
+            );
+
+            let sorted_vals: Vec<f64> = indices.iter().map(|&i| eigen.eigenvalues[i]).collect();
+            let mut sorted_vecs = DMatrix::zeros(n_vars, n_vars);
+            for i in 0..n_vars {
+                for j in 0..n_vars {
+                    sorted_vecs[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+                }
+            }
+
+            // Hitung Loadings
+            let mut current_loadings = DMatrix::zeros(n_vars, n_factors);
             for i in 0..n_vars {
                 for j in 0..n_factors {
-                    if sorted_eigenvalues[j] > 0.0 {
-                        loadings[(i, j)] = sorted_eigenvectors[(i, j)] * sorted_eigenvalues[j].sqrt();
+                    if sorted_vals[j] > 0.0 {
+                        current_loadings[(i, j)] = sorted_vecs[(i, j)] * sorted_vals[j].sqrt();
                     }
                 }
             }
-            
-            // Hitung communalities baru = sum of squared loadings
+
+            // Hitung Communalities Baru
             let mut new_communalities = vec![0.0; n_vars];
             for i in 0..n_vars {
                 let mut sum_sq = 0.0;
                 for j in 0..n_factors {
-                    sum_sq += loadings[(i, j)].powi(2);
+                    sum_sq += current_loadings[(i, j)].powi(2);
                 }
+                
+                // Clamp di bawah Total Variance variabel tersebut
+                let limit = variances[i] * 0.9999;
+                if sum_sq > limit { sum_sq = limit; }
                 new_communalities[i] = sum_sq;
             }
+
+            // Cek Konvergensi
+            let mut max_change = 0.0;
+            for i in 0..n_vars {
+                let denom = if communalities[i].abs() < 1e-10 { 1.0 } else { communalities[i] };
+                let change = (new_communalities[i] - communalities[i]).abs() / denom;
+                if change > max_change { max_change = change; }
+            }
+
+            communalities = new_communalities;
+            final_loadings = current_loadings;
+
+            if max_change < 0.001 { break; }
+        }
+
+        // 6. Hitung Output Akhir
+        let mut extracted_evals = Vec::new();
+        let mut explained_pct = Vec::new();
+        let total_variance: f64 = matrix.diagonal().sum();
+
+        for j in 0..n_factors {
+            let mut col_sq = 0.0;
+            for i in 0..n_vars {
+                if j < final_loadings.ncols() {
+                    col_sq += final_loadings[(i, j)].powi(2);
+                }
+            }
+            extracted_evals.push(col_sq);
+            if total_variance > 0.0 {
+                explained_pct.push((col_sq / total_variance) * 100.0);
+            } else {
+                explained_pct.push(0.0);
+            }
+        }
+
+        let mut cum_sum = 0.0;
+        let mut cum_var = Vec::new();
+        for &v in &explained_pct {
+            cum_sum += v;
+            cum_var.push(cum_sum);
+        }
+
+        return Ok(ExtractionResult {
+            loadings: final_loadings,
+            eigenvalues: extracted_evals,
+            communalities,
+            explained_variance: explained_pct,
+            cumulative_variance: cum_var,
+            n_factors,
+            var_names: var_names.to_vec(),
+        });
+
+    } else {
+        // =========================================================================
+        // JALUR 2: ANALYSIS = CORRELATION (Standard Logic)
+        // Ini adalah logika standar jika user TIDAK memilih Covariance
+        // =========================================================================
+        
+        let n_vars = matrix.nrows();
+        
+        // 1. Initial Communalities (SMC) pada Matrix Input (Correlation)
+        let mut communalities = vec![0.0; n_vars];
+        match matrix.clone().try_inverse() {
+            Some(inv) => {
+                for i in 0..n_vars {
+                    let r_ii = inv[(i, i)];
+                    if r_ii > 1e-12 {
+                        communalities[i] = 1.0 - (1.0 / r_ii);
+                    } else {
+                        communalities[i] = 0.0;
+                    }
+                    // Clamp standard 0-1 untuk correlation
+                    if communalities[i] > 0.9999 { communalities[i] = 0.9999; }
+                    if communalities[i] < 0.0 { communalities[i] = 0.0; }
+                }
+            },
+            None => {
+                // Fallback Max Corr
+                for i in 0..n_vars {
+                    let mut max_r = 0.0;
+                    for j in 0..n_vars {
+                        if i != j {
+                            let r = matrix[(i, j)].abs();
+                            if r > max_r { max_r = r; }
+                        }
+                    }
+                    communalities[i] = max_r;
+                }
+            }
+        }
+
+        // 2. Determine Factors
+        let eigen_check = matrix.clone().symmetric_eigen();
+        let mut init_evals: Vec<f64> = eigen_check.eigenvalues.iter().cloned().collect();
+        init_evals.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+        let n_factors = determine_factors_to_retain(&init_evals, config);
+        
+        if n_factors == 0 { return Err("No factors retainable".to_string()); }
+
+        // 3. Iterasi
+        let max_iter = if config.extraction.max_iter > 0 { config.extraction.max_iter as usize } else { 25 };
+        let mut final_loadings = DMatrix::zeros(n_vars, n_factors);
+        let mut work_matrix = matrix.clone();
+
+        for _iter in 0..max_iter {
+            for i in 0..n_vars {
+                work_matrix[(i, i)] = communalities[i];
+            }
+
+            let eigen = work_matrix.clone().symmetric_eigen();
             
-            // Cek konvergensi
+            let mut indices: Vec<usize> = (0..n_vars).collect();
+            indices.sort_by(|&i, &j| 
+                eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i]).unwrap_or(std::cmp::Ordering::Equal)
+            );
+
+            let sorted_vals: Vec<f64> = indices.iter().map(|&i| eigen.eigenvalues[i]).collect();
+            let mut sorted_vecs = DMatrix::zeros(n_vars, n_vars);
+            for i in 0..n_vars {
+                for j in 0..n_vars {
+                    sorted_vecs[(i, j)] = eigen.eigenvectors[(i, indices[j])];
+                }
+            }
+
+            let mut current_loadings = DMatrix::zeros(n_vars, n_factors);
+            for i in 0..n_vars {
+                for j in 0..n_factors {
+                    if sorted_vals[j] > 0.0 {
+                        current_loadings[(i, j)] = sorted_vecs[(i, j)] * sorted_vals[j].sqrt();
+                    }
+                }
+            }
+
+            let mut new_communalities = vec![0.0; n_vars];
+            for i in 0..n_vars {
+                let mut sum_sq = 0.0;
+                for j in 0..n_factors {
+                    sum_sq += current_loadings[(i, j)].powi(2);
+                }
+                if sum_sq > 0.9999 { sum_sq = 0.9999; }
+                new_communalities[i] = sum_sq;
+            }
+
             let mut max_change = 0.0;
             for i in 0..n_vars {
                 let change = (new_communalities[i] - communalities[i]).abs();
                 if change > max_change { max_change = change; }
             }
-            
+
             communalities = new_communalities;
-            
-            // Update diagonal work_matrix dengan communalities baru
-            for i in 0..n_vars {
-                work_matrix[(i, i)] = communalities[i];
-            }
-            
-            final_loadings = loadings;
-            
-            if max_change < convergence_criterion { 
-                break; 
-            }
+            final_loadings = current_loadings;
+
+            if max_change < 0.001 { break; }
         }
-        
-        // Hitung eigenvalues dan variance explained
-        let total_variance: f64 = matrix.diagonal().sum();
-        let mut result_eigenvalues = Vec::new();
-        let mut explained_variance = Vec::new();
-        
+
+        // 4. Final Output Correlation
+        let mut extracted_evals = Vec::new();
+        let mut explained_pct = Vec::new();
+        let total_variance = n_vars as f64; // Untuk Correlation, total variance = jumlah variabel
+
         for j in 0..n_factors {
-            let mut sum_sq_loadings = 0.0;
+            let mut col_sq = 0.0;
             for i in 0..n_vars {
-                sum_sq_loadings += final_loadings[(i, j)].powi(2);
+                if j < final_loadings.ncols() {
+                    col_sq += final_loadings[(i, j)].powi(2);
+                }
             }
-            result_eigenvalues.push(sum_sq_loadings);
-            let percent = if total_variance > 0.0 { 
-                (sum_sq_loadings / total_variance) * 100.0 
-            } else { 
-                0.0 
-            };
-            explained_variance.push(percent);
+            extracted_evals.push(col_sq);
+            if total_variance > 0.0 {
+                explained_pct.push((col_sq / total_variance) * 100.0);
+            } else {
+                explained_pct.push(0.0);
+            }
         }
-        
-        let mut cumulative_variance = vec![0.0; n_factors];
+
         let mut cum_sum = 0.0;
-        for (i, &var) in explained_variance.iter().enumerate() {
-            cum_sum += var;
-            cumulative_variance[i] = cum_sum;
+        let mut cum_var = Vec::new();
+        for &v in &explained_pct {
+            cum_sum += v;
+            cum_var.push(cum_sum);
         }
-        
+
         return Ok(ExtractionResult {
             loadings: final_loadings,
-            eigenvalues: result_eigenvalues,
-            communalities, // Sudah dalam skala covariance
-            explained_variance,
-            cumulative_variance,
+            eigenvalues: extracted_evals,
+            communalities,
+            explained_variance: explained_pct,
+            cumulative_variance: cum_var,
             n_factors,
             var_names: var_names.to_vec(),
         });
     }
-    
-    // =========================================================================
-    // UNTUK CORRELATION ANALYSIS: Iterate pada correlation matrix
-    // =========================================================================
-    
-    // Initial communalities = max absolute correlation (SPSS default, SMC=FALSE)
-    let mut communalities = vec![0.0; n_vars];
-    for i in 0..n_vars {
-        let mut max_r = 0.0;
-        for j in 0..n_vars {
-            if i != j {
-                let r_ij = matrix[(i, j)].abs();
-                if r_ij > max_r { 
-                    max_r = r_ij; 
-                }
-            }
-        }
-        communalities[i] = max_r;
-    }
-
-    // ITERASI PAF untuk correlation matrix
-    let mut r_matrix = matrix.clone();
-    for i in 0..n_vars { r_matrix[(i, i)] = communalities[i]; }
-
-    let max_iterations = if config.extraction.max_iter > 0 { config.extraction.max_iter as usize } else { 25 };
-    let convergence_criterion = 0.001; 
-    let mut final_loadings = DMatrix::zeros(n_vars, n_factors); 
-
-    for iteration in 1..=max_iterations {
-        let eigen = r_matrix.clone().symmetric_eigen();
-        let mut indices: Vec<usize> = (0..n_vars).collect();
-        indices.sort_by(|&i, &j| eigen.eigenvalues[j].partial_cmp(&eigen.eigenvalues[i]).unwrap_or(std::cmp::Ordering::Equal));
-
-        let sorted_eigenvalues: Vec<f64> = indices.iter().map(|&i| eigen.eigenvalues[i]).collect();
-        let mut sorted_eigenvectors = DMatrix::zeros(n_vars, n_vars);
-        for i in 0..n_vars {
-            for j in 0..n_vars {
-                sorted_eigenvectors[(i, j)] = eigen.eigenvectors[(i, indices[j])];
-            }
-        }
-
-        let mut loadings = DMatrix::zeros(n_vars, n_factors);
-        for i in 0..n_vars {
-            for j in 0..n_factors {
-                if sorted_eigenvalues[j] > 0.0 {
-                    loadings[(i, j)] = sorted_eigenvectors[(i, j)] * sorted_eigenvalues[j].sqrt();
-                }
-            }
-        }
-
-        let mut new_communalities = vec![0.0; n_vars];
-        for i in 0..n_vars {
-            let mut sum_sq = 0.0;
-            for j in 0..n_factors {
-                sum_sq += loadings[(i, j)].powi(2);
-            }
-            
-            // STRICT TERMINATION (Heywood Case Check)
-            if sum_sq > 1.0 {
-                return Err(format!("Extraction terminated. Heywood case at iteration {} (Communalities > 1.0).", iteration));
-            }
-            new_communalities[i] = sum_sq; 
-        }
-
-        let mut max_change = 0.0;
-        for i in 0..n_vars {
-            let change = (new_communalities[i] - communalities[i]).abs();
-            if change > max_change { max_change = change; }
-        }
-
-        communalities = new_communalities;
-        for i in 0..n_vars { r_matrix[(i, i)] = communalities[i]; }
-        final_loadings = loadings;
-
-        if max_change < convergence_criterion { break; }
-    }
-
-    // POST-PROCESSING untuk correlation analysis
-    let total_variance_corr = n_vars as f64;
-    let mut result_eigenvalues = Vec::new();
-    let mut explained_variance = Vec::new();
-    
-    for j in 0..n_factors {
-        let mut sum_sq_loadings = 0.0;
-        for i in 0..n_vars {
-            if j < final_loadings.ncols() {
-                sum_sq_loadings += final_loadings[(i, j)].powi(2);
-            }
-        }
-        result_eigenvalues.push(sum_sq_loadings);
-        let percent = if total_variance_corr > 0.0 { 
-            (sum_sq_loadings / total_variance_corr) * 100.0 
-        } else { 
-            0.0 
-        };
-        explained_variance.push(percent);
-    }
-
-    let mut cumulative_variance = vec![0.0; n_factors];
-    let mut cum_sum = 0.0;
-    for (i, &var) in explained_variance.iter().enumerate() {
-        cum_sum += var;
-        cumulative_variance[i] = cum_sum;
-    }
-
-    Ok(ExtractionResult {
-        loadings: final_loadings,
-        eigenvalues: result_eigenvalues,
-        communalities,
-        explained_variance,
-        cumulative_variance,
-        n_factors,
-        var_names: var_names.to_vec(),
-    })
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

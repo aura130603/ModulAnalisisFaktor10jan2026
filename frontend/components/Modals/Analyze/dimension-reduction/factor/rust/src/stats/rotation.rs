@@ -49,6 +49,9 @@ pub fn rotate_factors(
 }
 
 
+
+
+
 // Varimax rotation (SPSS-compatible)
 pub fn rotate_varimax(
     extraction_result: &ExtractionResult,
@@ -536,87 +539,395 @@ pub fn rotate_equimax(
 
 
 
+// pub fn rotate_oblimin(
+//     extraction_result: &ExtractionResult,
+//     config: &FactorAnalysisConfig
+// ) -> Result<RotationResult, String> {
+//     let unrotated_loadings = &extraction_result.loadings;
+//     let n_rows = unrotated_loadings.nrows();
+//     let n_cols = unrotated_loadings.ncols();
+//     let delta = config.rotation.delta;
+
+//     // 1. Kaiser Normalization
+//     let mut h = vec![0.0; n_rows];
+//     let mut a = unrotated_loadings.clone();
+//     for i in 0..n_rows {
+//         let ss: f64 = (0..n_cols).map(|j| unrotated_loadings[(i, j)].powi(2)).sum();
+//         h[i] = ss.sqrt().max(1e-12);
+//         for j in 0..n_cols {
+//             a[(i, j)] /= h[i];
+//         }
+//     }
+
+//     // 2. Initialize T
+//     let mut t = DMatrix::<f64>::identity(n_cols, n_cols);
+//     let mut t_inv = DMatrix::<f64>::identity(n_cols, n_cols);
+    
+//     let max_iter = config.rotation.max_iter as usize;
+//     let tol = 1e-7;
+    
+//     for _ in 0..max_iter {
+//         let t_old = t.clone();
+        
+//         // Pattern Matrix: L = A * (T^-1)'
+//         let t_inv_trans = t_inv.transpose();
+//         let l = &a * &t_inv_trans; // Gunakan & agar tidak move
+
+//         // Calculate Gradient G
+//         let mut g = DMatrix::<f64>::zeros(n_rows, n_cols);
+//         for j in 0..n_cols {
+//             let l_j_sq_sum: f64 = (0..n_rows).map(|i| l[(i, j)].powi(2)).sum();
+//             for i in 0..n_rows {
+//                 let term1 = l[(i, j)].powi(3);
+//                 let term2 = (delta / n_rows as f64) * l[(i, j)] * l_j_sq_sum;
+//                 g[(i, j)] = term1 - term2;
+//             }
+//         }
+
+//         // FIX ERROR DISINI: Gunakan referensi (&) untuk semua operasi
+//         // Grad = -A' * G * T_inv_trans * T_inv_trans'
+//         let grad_t = -(&a.transpose() * &g * &t_inv_trans * t_inv_trans.transpose());
+        
+//         // Update T
+//         t = &t - (0.5 * grad_t);
+        
+//         // Normalize T columns
+//         for j in 0..n_cols {
+//             let col_norm = t.column(j).norm();
+//             for i in 0..n_cols { t[(i, j)] /= col_norm; }
+//         }
+
+//         t_inv = match t.clone().try_inverse() {
+//             Some(inv) => inv,
+//             None => break,
+//         };
+
+//         if (&t - &t_old).map(|v| v.abs()).sum() < tol { break; }
+//     }
+
+//     // 3. Final Pattern Matrix
+//     let mut pattern = &a * t_inv.transpose();
+//     for i in 0..n_rows {
+//         for j in 0..n_cols { pattern[(i, j)] *= h[i]; }
+//     }
+
+//     // 4. Factor Correlation Matrix (Phi = T' * T)
+//     let phi = t.transpose() * &t;
+
+//     Ok(RotationResult {
+//         rotated_loadings: pattern,
+//         transformation_matrix: t,
+//         factor_correlations: Some(phi),
+//     })
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// PERBAIKAN 2
+
+// =========================================================
+// Direct Oblimin Rotation (With Varimax Warm Start)
+// =========================================================
 pub fn rotate_oblimin(
     extraction_result: &ExtractionResult,
     config: &FactorAnalysisConfig
 ) -> Result<RotationResult, String> {
+    
+    // ---------------------------------------------------------
+    // STEP 1: VARIMAX WARM START (RAHASIA SPSS MATCHING)
+    // ---------------------------------------------------------
+    // Kita jalankan Varimax terlebih dahulu untuk mendapatkan posisi awal 
+    // yang mendekati solusi optimal. Ini mencegah terjebak di local minima.
+    // Pastikan fungsi rotate_varimax sudah benar (karena Anda bilang sudah match SPSS).
+    
+    let varimax_result = rotate_varimax(extraction_result, config)?;
+    let start_t = varimax_result.transformation_matrix; // Kita pakai T dari Varimax
+
+    // Ambil data dasar
     let unrotated_loadings = &extraction_result.loadings;
     let n_rows = unrotated_loadings.nrows();
     let n_cols = unrotated_loadings.ncols();
-    let delta = config.rotation.delta;
+    
+    // Parameter Gamma/Delta (SPSS Default delta=0)
+    let gamma = config.rotation.delta; 
 
-    // 1. Kaiser Normalization
+    // ---------------------------------------------------------
+    // STEP 2: KAISER NORMALIZATION
+    // ---------------------------------------------------------
     let mut h = vec![0.0; n_rows];
-    let mut a = unrotated_loadings.clone();
+    let mut a_mat = unrotated_loadings.clone(); // A = Normalized Loadings
+    
     for i in 0..n_rows {
-        let ss: f64 = (0..n_cols).map(|j| unrotated_loadings[(i, j)].powi(2)).sum();
-        h[i] = ss.sqrt().max(1e-12);
+        let mut ss = 0.0;
         for j in 0..n_cols {
-            a[(i, j)] /= h[i];
+            ss += unrotated_loadings[(i, j)].powi(2);
+        }
+        h[i] = ss.sqrt().max(1e-12); 
+        for j in 0..n_cols {
+            a_mat[(i, j)] /= h[i];
         }
     }
 
-    // 2. Initialize T
-    let mut t = DMatrix::<f64>::identity(n_cols, n_cols);
-    let mut t_inv = DMatrix::<f64>::identity(n_cols, n_cols);
-    
-    let max_iter = config.rotation.max_iter as usize;
-    let tol = 1e-7;
-    
-    for _ in 0..max_iter {
-        let t_old = t.clone();
-        
-        // Pattern Matrix: L = A * (T^-1)'
-        let t_inv_trans = t_inv.transpose();
-        let l = &a * &t_inv_trans; // Gunakan & agar tidak move
+    // ---------------------------------------------------------
+    // STEP 3: INITIALIZATION (MENGGUNAKAN HASIL VARIMAX)
+    // ---------------------------------------------------------
+    // Disini perbedaannya. Jangan mulai dari Identity.
+    // Mulai dari Varimax T.
+    let mut t_mat = start_t; 
 
-        // Calculate Gradient G
-        let mut g = DMatrix::<f64>::zeros(n_rows, n_cols);
-        for j in 0..n_cols {
-            let l_j_sq_sum: f64 = (0..n_rows).map(|i| l[(i, j)].powi(2)).sum();
-            for i in 0..n_rows {
-                let term1 = l[(i, j)].powi(3);
-                let term2 = (delta / n_rows as f64) * l[(i, j)] * l_j_sq_sum;
-                g[(i, j)] = term1 - term2;
+    // Setup Iterasi
+    let max_iter = config.rotation.max_iter as usize;
+    let tol = 1e-5;
+    let mut alpha = 1.0; // Initial step size
+
+    // ---------------------------------------------------------
+    // STEP 4: OBLIMIN GRADIENT OPTIMIZATION
+    // ---------------------------------------------------------
+    
+    // Pre-allocate matrix N untuk Oblimin weight
+    // N_jm = 1 (j!=m), 0 (j=m) minus gamma/p
+    let mut n_matrix = DMatrix::<f64>::zeros(n_cols, n_cols);
+    for j in 0..n_cols {
+        for m in 0..n_cols {
+            if j != m { n_matrix[(j, m)] = 1.0; }
+            n_matrix[(j, m)] -= gamma / n_rows as f64;
+        }
+    }
+
+    let mut current_obj = oblimin_criterion_gpa(&(&a_mat * &t_mat), &n_matrix);
+
+    for _iter in 0..max_iter {
+        // L = A * T
+        let l_mat = &a_mat * &t_mat;
+
+        // --- Gradient Calculation (Standard GPA) ---
+        // Rumus Gradient Oblimin Standard (sesuai GPArotation R package / Jennrich)
+        // dQ = L * (L^2 . N)
+        // G  = A' * dQ
+        
+        let mut l_sq = DMatrix::<f64>::zeros(n_rows, n_cols);
+        for i in 0..n_rows {
+            for j in 0..n_cols { l_sq[(i, j)] = l_mat[(i, j)].powi(2); }
+        }
+        
+        // Element-wise multiplication implicit in calculation logic
+        // Gradient Matrix Q
+        let l2_n = &l_sq * &n_matrix;
+        let mut dq = DMatrix::<f64>::zeros(n_rows, n_cols);
+        for i in 0..n_rows {
+            for j in 0..n_cols {
+                dq[(i, j)] = l_mat[(i, j)] * l2_n[(i, j)];
             }
         }
+        
+        // Gradient G
+        let g_mat = a_mat.transpose() * &dq;
 
-        // FIX ERROR DISINI: Gunakan referensi (&) untuk semua operasi
-        // Grad = -A' * G * T_inv_trans * T_inv_trans'
-        let grad_t = -(&a.transpose() * &g * &t_inv_trans * t_inv_trans.transpose());
+        // --- Gradient Projection ---
+        // P = G - T * diag(inv(T) * G)
+        // Untuk Oblique rotation, kita proyeksikan gradient agar T tetap valid
+        let t_inv = t_mat.clone().try_inverse().unwrap_or_else(|| DMatrix::identity(n_cols, n_cols));
+        let x_mat = &t_inv * &g_mat; 
         
-        // Update T
-        t = &t - (0.5 * grad_t);
-        
-        // Normalize T columns
-        for j in 0..n_cols {
-            let col_norm = t.column(j).norm();
-            for i in 0..n_cols { t[(i, j)] /= col_norm; }
+        let mut x_diag = DMatrix::<f64>::zeros(n_cols, n_cols);
+        for i in 0..n_cols { x_diag[(i, i)] = x_mat[(i, i)]; }
+
+        let gp = &g_mat - &t_mat * &x_diag;
+
+        // Check Convergence
+        let max_grad = gp.iter().map(|x| x.abs()).fold(0.0, f64::max);
+        if max_grad < tol { break; }
+
+        // --- Line Search ---
+        let mut best_t = t_mat.clone();
+        let mut found = false;
+        let mut step = alpha;
+
+        for _s in 0..10 {
+            let mut t_new = &t_mat - step * &gp;
+            
+            // Constraint: Kolom T harus memiliki panjang normal di ruang invers
+            // diag(inv(T'T)) = 1
+            let tt = t_new.transpose() * &t_new;
+            if let Some(inv_tt) = tt.try_inverse() {
+                 let mut scale_diag = DMatrix::<f64>::zeros(n_cols, n_cols);
+                 for k in 0..n_cols {
+                     if inv_tt[(k,k)] > 0.0 {
+                        scale_diag[(k,k)] = inv_tt[(k,k)].sqrt();
+                     } else {
+                        scale_diag[(k,k)] = 1.0;
+                     }
+                 }
+                 t_new = t_new * scale_diag;
+            }
+
+            let l_new = &a_mat * &t_new;
+            let obj_new = oblimin_criterion_gpa(&l_new, &n_matrix);
+
+            if obj_new < current_obj {
+                current_obj = obj_new;
+                best_t = t_new;
+                found = true;
+                step *= 1.2; 
+                break;
+            }
+            step *= 0.5;
         }
 
-        t_inv = match t.clone().try_inverse() {
-            Some(inv) => inv,
-            None => break,
-        };
-
-        if (&t - &t_old).map(|v| v.abs()).sum() < tol { break; }
+        t_mat = best_t;
+        alpha = step;
+        if !found && alpha < 1e-7 { break; }
     }
 
-    // 3. Final Pattern Matrix
-    let mut pattern = &a * t_inv.transpose();
+    // ---------------------------------------------------------
+    // STEP 5: DE-NORMALIZATION
+    // ---------------------------------------------------------
+    let l_final = &a_mat * &t_mat;
+    let mut pattern = DMatrix::<f64>::zeros(n_rows, n_cols);
     for i in 0..n_rows {
-        for j in 0..n_cols { pattern[(i, j)] *= h[i]; }
+        for j in 0..n_cols {
+            pattern[(i, j)] = l_final[(i, j)] * h[i];
+        }
     }
 
-    // 4. Factor Correlation Matrix (Phi = T' * T)
-    let phi = t.transpose() * &t;
+    // ---------------------------------------------------------
+    // STEP 6: SIGN REFLECTION (SPSS COMPATIBILITY)
+    // ---------------------------------------------------------
+    for j in 0..n_cols {
+        let mut col_sum = 0.0;
+        for i in 0..n_rows {
+            // SPSS ULS method usually looks at raw sum or sum of cubes.
+            // Kita gunakan raw sum.
+            col_sum += pattern[(i, j)];
+        }
+
+        if col_sum < 0.0 {
+            // Flip Pattern Column
+            for i in 0..n_rows { pattern[(i, j)] *= -1.0; }
+            // Flip T Column (Agar korelasi ikut terbalik)
+            for k in 0..n_cols { t_mat[(k, j)] *= -1.0; }
+        }
+    }
+
+    // ---------------------------------------------------------
+    // STEP 7: CALCULATE PHI & SORTING
+    // ---------------------------------------------------------
+    let tt = t_mat.transpose() * &t_mat;
+    let phi = tt.try_inverse().unwrap_or_else(|| DMatrix::identity(n_cols, n_cols));
+
+    // Sorting by Variance (SSL)
+    let mut col_stats: Vec<(usize, f64)> = (0..n_cols)
+        .map(|j| {
+            let ssl: f64 = (0..n_rows).map(|i| pattern[(i, j)].powi(2)).sum();
+            (j, ssl)
+        })
+        .collect();
+
+    col_stats.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    let new_indices: Vec<usize> = col_stats.iter().map(|x| x.0).collect();
+
+    // Reordering Matrices
+    let mut sorted_pattern = DMatrix::<f64>::zeros(n_rows, n_cols);
+    let mut sorted_t = DMatrix::<f64>::zeros(n_cols, n_cols);
+    
+    for (new_idx, &old_idx) in new_indices.iter().enumerate() {
+        for i in 0..n_rows { sorted_pattern[(i, new_idx)] = pattern[(i, old_idx)]; }
+        for i in 0..n_cols { sorted_t[(i, new_idx)] = t_mat[(i, old_idx)]; }
+    }
+
+    // Reorder Correlation Matrix (Symmetric)
+    let mut sorted_phi = DMatrix::<f64>::zeros(n_cols, n_cols);
+    for (new_row, &old_row) in new_indices.iter().enumerate() {
+        for (new_col, &old_col) in new_indices.iter().enumerate() {
+            sorted_phi[(new_row, new_col)] = phi[(old_row, old_col)];
+        }
+    }
 
     Ok(RotationResult {
-        rotated_loadings: pattern,
-        transformation_matrix: t,
-        factor_correlations: Some(phi),
+        rotated_loadings: sorted_pattern,
+        transformation_matrix: sorted_t,
+        factor_correlations: Some(sorted_phi),
     })
 }
+
+// Helper untuk GPA Oblimin Criterion (Tetap sama, pastikan ada di file)
+fn oblimin_criterion_gpa(l_mat: &DMatrix<f64>, n_matrix: &DMatrix<f64>) -> f64 {
+    let n_rows = l_mat.nrows();
+    let n_cols = l_mat.ncols();
+    let mut l_sq = DMatrix::<f64>::zeros(n_rows, n_cols);
+    for i in 0..n_rows {
+        for j in 0..n_cols {
+            l_sq[(i, j)] = l_mat[(i, j)].powi(2);
+        }
+    }
+    let l2_n = &l_sq * n_matrix;
+    let mut sum = 0.0;
+    for i in 0..n_rows {
+        for j in 0..n_cols {
+            sum += l_sq[(i, j)] * l2_n[(i, j)];
+        }
+    }
+    sum / 4.0
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Promax rotation - starts with varimax and then relaxes orthogonality
 pub fn rotate_promax(
