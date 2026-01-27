@@ -118,6 +118,7 @@ struct FormattedCommunalities {
     raw_initial: Vec<VariableValue>,
     rescaled_initial: Vec<VariableValue>,
     extraction: Vec<VariableValue>,
+    rescaled_extraction: Vec<VariableValue>,
     extraction_matrix_type: String,
 }
 
@@ -421,19 +422,8 @@ impl FormatResult {
                 })
                 .collect();
 
-            // let extraction = comm.variable_order
-            //     .iter()
-            //     .map(|var_name| {
-            //         VariableValue {
-            //             variable: var_name.clone(),
-            //             value: *comm.extraction.get(var_name).unwrap_or(&0.0),
-            //         }
-            //     })
-            //     .collect();
-
-
-                // --- PERBAIKAN DI SINI ---
-            // Jika comm.extraction kosong (karena suppress di report.rs),
+            // --- PERBAIKAN DI SINI ---
+            // Jika comm.extraction kosong (karena suppress di report.rs atau Unrotated = false),
             // JANGAN lakukan mapping dengan unwrap_or(&0.0). Kembalikan Vec kosong.
             let extraction: Vec<VariableValue> = if comm.extraction.is_empty() {
                 Vec::new()
@@ -449,11 +439,27 @@ impl FormatResult {
                     .collect()
             };
 
+            // Rescaled Extraction (untuk covariance mode)
+            let rescaled_extraction: Vec<VariableValue> = if comm.rescaled_extraction.is_empty() {
+                Vec::new()
+            } else {
+                comm.variable_order
+                    .iter()
+                    .map(|var_name| {
+                        VariableValue {
+                            variable: var_name.clone(),
+                            value: *comm.rescaled_extraction.get(var_name).unwrap_or(&0.0),
+                        }
+                    })
+                    .collect()
+            };
+
 
             FormattedCommunalities {
                 raw_initial,
                 rescaled_initial,
                 extraction,
+                rescaled_extraction,
                 extraction_matrix_type: comm.extraction_matrix_type.clone(),
             }
         });

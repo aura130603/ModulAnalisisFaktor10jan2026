@@ -361,22 +361,54 @@ function getExtractionMethodDisplayName(methodValue: string): string {
     // ==================================================================================
     if (data.communalities) {
         const isCovariance = data.communalities.extraction_matrix_type === "covariance";
+        
+        // Cek apakah Unrotated Factor Solution diaktifkan
+        const isUnrotatedEnabled = configData?.extraction?.Unrotated ?? true;
+        
+        // Cek apakah ada data ekstraksi dari backend
+        const hasExtractionData = data.communalities.extraction && data.communalities.extraction.length > 0;
+        
+        // Tampilkan kolom extraction hanya jika Unrotated diaktifkan DAN ada data extraction
+        const showExtractionColumn = isUnrotatedEnabled && hasExtractionData;
+
         const columnHeaders: any = [{ header: "", key: "var" }];
 
         if (isCovariance) {
-            columnHeaders.push({ header: "Raw Initial", key: "raw_initial" });
-            columnHeaders.push({ header: "Rescaled Initial", key: "rescaled_initial" });
+            // ================================================================
+            // COVARIANCE CASE: Format dengan kolom Raw dan Rescaled
+            // ================================================================
+            if (showExtractionColumn) {
+                // Unrotated ON: Raw (Initial + Extraction) dan Rescaled (Initial + Extraction)
+                columnHeaders.push({
+                    header: "Raw",
+                    key: "raw",
+                    children: [
+                        { header: "Initial", key: "raw_initial" },
+                        { header: "Extraction", key: "raw_extraction" },
+                    ]
+                });
+                columnHeaders.push({
+                    header: "Rescaled",
+                    key: "rescaled",
+                    children: [
+                        { header: "Initial", key: "rescaled_initial" },
+                        { header: "Extraction", key: "rescaled_extraction" },
+                    ]
+                });
+            } else {
+                // Unrotated OFF: Hanya Raw Initial dan Rescaled Initial
+                columnHeaders.push({ header: "Raw Initial", key: "raw_initial" });
+                columnHeaders.push({ header: "Rescaled Initial", key: "rescaled_initial" });
+            }
         } else {
-            columnHeaders.push({ header: "Initial", key: "rescaled_initial" });
-        }
-
-        // --- CEK DATA EKSTRAKSI ---
-        // Jika backend mengirim array kosong (karena suppress), hasExtractionData = false
-        const hasExtractionData = data.communalities.extraction && data.communalities.extraction.length > 0;
-
-        // Hanya tambahkan header "Extraction" jika data benar-benar ada
-        if (hasExtractionData) {
-            columnHeaders.push({ header: "Extraction", key: "extraction" });
+            // ================================================================
+            // CORRELATION CASE: Format dengan kolom Initial dan Extraction
+            // ================================================================
+            columnHeaders.push({ header: "Initial", key: "initial" });
+            
+            if (showExtractionColumn) {
+                columnHeaders.push({ header: "Extraction", key: "extraction" });
+            }
         }
 
         const table: Table = {
@@ -403,6 +435,12 @@ function getExtractionMethodDisplayName(methodValue: string): string {
             data.communalities.extraction.forEach((item: any) => extractionMap.set(item.variable, item.value));
         }
 
+        // Map rescaled extraction (dari backend)
+        const rescaledExtractionMap = new Map();
+        if (hasExtractionData && Array.isArray(data.communalities.rescaled_extraction)) {
+            data.communalities.rescaled_extraction.forEach((item: any) => rescaledExtractionMap.set(item.variable, item.value));
+        }
+
         // Get variables
         const variables = data.communalities.raw_initial && Array.isArray(data.communalities.raw_initial)
             ? (data.communalities.raw_initial as any[]).map((item: any) => item.variable)
@@ -412,17 +450,32 @@ function getExtractionMethodDisplayName(methodValue: string): string {
             const rowData: any = { rowHeader: [variable] };
 
             if (isCovariance) {
+                // COVARIANCE CASE
                 rowData.raw_initial = formatDisplayNumber(rawInitialMap.get(variable));
-            }
-            rowData.rescaled_initial = formatDisplayNumber(rescaledInitialMap.get(variable));
+                rowData.rescaled_initial = formatDisplayNumber(rescaledInitialMap.get(variable));
+                
+                if (showExtractionColumn) {
+                    // Gunakan nilai dari backend untuk extraction
+                    const rawExtraction = extractionMap.get(variable);
+                    const rescaledExtraction = rescaledExtractionMap.get(variable);
+                    
+                    if (rawExtraction !== undefined) {
+                        rowData.raw_extraction = formatDisplayNumber(rawExtraction);
+                    }
+                    if (rescaledExtraction !== undefined) {
+                        rowData.rescaled_extraction = formatDisplayNumber(rescaledExtraction);
+                    }
+                }
+            } else {
+                // CORRELATION CASE
+                // Untuk correlation, initial selalu 1.0 untuk PCA atau SMC untuk PAF
+                rowData.initial = formatDisplayNumber(rescaledInitialMap.get(variable));
 
-            // --- HANYA ISI DATA JIKA HEADER ADA ---
-            // Jangan pakai default (?? null) yang akan jadi 0
-            if (hasExtractionData) {
-                const val = extractionMap.get(variable);
-                // Penting: cek undefined agar tidak memformat "undefined" menjadi "0"
-                if (val !== undefined) {
-                    rowData.extraction = formatDisplayNumber(val);
+                if (showExtractionColumn) {
+                    const val = extractionMap.get(variable);
+                    if (val !== undefined) {
+                        rowData.extraction = formatDisplayNumber(val);
+                    }
                 }
             }
 

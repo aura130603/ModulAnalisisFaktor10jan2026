@@ -125,8 +125,143 @@ use crate::models::{
 // }
 
 
+// // =========================================================================
+// // 1. Communalities
+// // =========================================================================
+// pub fn calculate_communalities(
+//     data: &AnalysisData,
+//     config: &FactorAnalysisConfig
+// ) -> Result<Communalities, String> {
+
+//     let (data_matrix, var_names) = extract_data_matrix(data, config)?;
+//     let is_covariance_extraction = config.extraction.covariance;
+
+//     let matrix_type = if is_covariance_extraction {
+//         "covariance"
+//     } else if config.extraction.correlation {
+//         "correlation"
+//     } else {
+//         "correlation" 
+//     };
+
+//     // 1. Lakukan Ekstraksi Faktor
+//     let matrix_for_extraction = calculate_matrix(&data_matrix, matrix_type)?; 
+//     let extraction_result = extract_factors(&matrix_for_extraction, config, &var_names)?;
+
+//     // --- LOGIKA SUPPRESS (MENYEMBUNYIKAN KOLOM EXTRACTION) ---
+//     // Suppress jika terjadi Heywood Case (>= 0.9999), NaN, Infinite, atau gagal (0.0)
+//     // Berlaku untuk metode iteratif (PAF, ML, GLS)
+//     let suppress_extraction = match config.extraction.method {
+//         ExtractionMethod::GeneralizedLeastSquares | ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
+//             extraction_result.communalities.iter().any(|&c| {
+//                 c.is_nan() ||           // Cek NaN
+//                 c.is_infinite() ||      // Cek Infinity
+//                 c >= 0.9999 ||          // Cek Heywood Case
+//                 c.abs() < 1e-6          // Cek Gagal/Zero
+//             })
+//         },
+//         _ => false 
+//     };
+
+//     // --- PERSIAPAN DATA INITIAL ---
+    
+//     // A. Hitung Varians Murni (Raw Variances) dari data
+//     // Digunakan untuk kolom "Raw Initial" pada PCA atau sebagai pengali pada PAF Covariance
+//     let raw_variances = calculate_raw_variances(&data_matrix)?; 
+
+//     // B. Hitung Squared Multiple Correlations (SMC)
+//     // Ini selalu dihitung dari matriks KORELASI, tidak peduli metode ekstraksinya apa.
+//     // SMC = 1 - (1 / R_ii_inverse)
+//     let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
+//     let smc_values: Vec<f64> = match corr_matrix.try_inverse() {
+//         Some(inv) => {
+//             (0..var_names.len())
+//                 .map(|i| {
+//                     let r_ii = inv[(i, i)];
+//                     // Pastikan tidak negatif dan valid
+//                     if r_ii > 0.0 { (1.0 - 1.0 / r_ii).max(0.0) } else { 0.0 }
+//                 })
+//                 .collect()
+//         },
+//         None => vec![0.0; var_names.len()] // Jika singular, SMC dianggap 0 atau handling lain (SPSS biasanya kosong/error)
+//     };
+
+//     let mut raw_initial = HashMap::new();
+//     let mut rescaled_initial = HashMap::new();
+//     let mut extraction = HashMap::new();
+//     let mut rescaled_extraction = HashMap::new();
+
+//     for (i, var_name) in var_names.iter().enumerate() {
+        
+//         // --- LOGIKA PENGISIAN INITIAL VALUES (MATCH SPSS) ---
+//         match config.extraction.method {
+//             ExtractionMethod::PrincipalComponents => {
+//                 // KASUS PCA:
+//                 // Rescaled Initial: Selalu 1.0
+//                 // Raw Initial: Varians (jika Covariance) atau 1.0 (jika Correlation)
+//                 rescaled_initial.insert(var_name.clone(), 1.0);
+                
+//                 if is_covariance_extraction {
+//                     raw_initial.insert(var_name.clone(), raw_variances[i]);
+//                 } else {
+//                     raw_initial.insert(var_name.clone(), 1.0);
+//                 }
+//             },
+//             _ => {
+//                 // KASUS FACTOR ANALYSIS (PAF, ML, ULS, dll):
+//                 // Rescaled Initial: Nilai SMC
+//                 let smc = if i < smc_values.len() { smc_values[i] } else { 0.0 };
+//                 rescaled_initial.insert(var_name.clone(), smc);
+
+//                 // Raw Initial:
+//                 if is_covariance_extraction {
+//                     // PENTING: Untuk Covariance, Initial = SMC * Variance
+//                     // Ini yang memperbaiki selisih angka Anda dengan SPSS
+//                     let raw_val = smc * raw_variances[i];
+//                     raw_initial.insert(var_name.clone(), raw_val);
+//                 } else {
+//                     // Untuk Correlation, Initial = SMC
+//                     raw_initial.insert(var_name.clone(), smc);
+//                 }
+//             }
+//         }
+
+//         // --- PENGISIAN EXTRACTION VALUES ---
+//         // Masukkan hanya jika:
+//         // 1. Tidak di-suppress (Heywood case aman)
+//         // 2. Unrotated Factor Solution diaktifkan (config.extraction.unrotated == true)
+//         // Jika Unrotated tidak diaktifkan, kolom extraction tidak ditampilkan
+//         if !suppress_extraction && config.extraction.unrotated {
+//             if i < extraction_result.communalities.len() {
+//                 let raw_ext = extraction_result.communalities[i];
+//                 extraction.insert(var_name.clone(), raw_ext);
+                
+//                 // Hitung rescaled extraction untuk covariance mode
+//                 // Rescaled Extraction = Raw Extraction / Variance
+//                 if is_covariance_extraction && raw_variances[i] > 0.0 {
+//                     let rescaled_ext = raw_ext / raw_variances[i];
+//                     rescaled_extraction.insert(var_name.clone(), rescaled_ext);
+//                 } else {
+//                     // Untuk correlation mode, extraction sudah dalam bentuk rescaled
+//                     rescaled_extraction.insert(var_name.clone(), raw_ext);
+//                 }
+//             }
+//         }
+//     }
+
+//     Ok(Communalities {
+//         raw_initial,
+//         rescaled_initial,
+//         extraction, // Map ini kosong jika Heywood case atau Unrotated = false
+//         rescaled_extraction, // Map ini kosong jika Heywood case atau Unrotated = false
+//         variable_order: var_names,
+//         extraction_matrix_type: matrix_type.to_string(),
+//     })
+// }
+
+
 // =========================================================================
-// 1. Communalities
+// 1. Communalities (FIXED LOGIC ORDER & COVARIANCE HANDLING)
 // =========================================================================
 pub fn calculate_communalities(
     data: &AnalysisData,
@@ -148,58 +283,74 @@ pub fn calculate_communalities(
     let matrix_for_extraction = calculate_matrix(&data_matrix, matrix_type)?; 
     let extraction_result = extract_factors(&matrix_for_extraction, config, &var_names)?;
 
-    // --- LOGIKA SUPPRESS (MENYEMBUNYIKAN KOLOM EXTRACTION) ---
-    // Suppress jika terjadi Heywood Case (>= 0.9999), NaN, Infinite, atau gagal (0.0)
-    // Berlaku untuk metode iteratif (PAF, ML, GLS)
+    // 2. Hitung Varians Murni (Raw Variances) - DIPINDAHKAN KE ATAS
+    // Kita butuh ini untuk mengecek validitas Heywood Case pada mode Covariance
+    let raw_variances = calculate_raw_variances(&data_matrix)?; 
+
+    // --- LOGIKA SUPPRESS (SPSS BEHAVIOR - REVISED) ---
     let suppress_extraction = match config.extraction.method {
-        ExtractionMethod::GeneralizedLeastSquares | ExtractionMethod::MaximumLikelihood | ExtractionMethod::PrincipalAxisFactoring => {
-            extraction_result.communalities.iter().any(|&c| {
-                c.is_nan() ||           // Cek NaN
-                c.is_infinite() ||      // Cek Infinity
-                c >= 0.9999 ||          // Cek Heywood Case
-                c.abs() < 1e-6          // Cek Gagal/Zero
-            })
+        // GRUP ITERATIF: Cek Heywood Case (>= 1.0 pada nilai Rescaled)
+        ExtractionMethod::GeneralizedLeastSquares | 
+        ExtractionMethod::MaximumLikelihood | 
+        ExtractionMethod::PrincipalAxisFactoring | 
+        ExtractionMethod::UnweightedLeastSquares => {
+            
+            if extraction_result.n_factors == 0 {
+                true
+            } else {
+                extraction_result.communalities.iter().enumerate().any(|(i, &val)| {
+                    // Cek Error Fatal dulu
+                    if val.is_nan() || val.is_infinite() { return true; }
+
+                    // Cek Heywood Case (Nilai >= 1.0)
+                    // PENTING: Kita harus mengecek nilai RESCALED (Standardized)
+                    let check_val = if is_covariance_extraction {
+                        // Jika Covariance, normalkan dulu dengan varians
+                        if raw_variances[i] > 0.0 { val / raw_variances[i] } else { 0.0 }
+                    } else {
+                        // Jika Correlation, nilai sudah scaled
+                        val
+                    };
+
+                    // Gunakan toleransi sedikit di bawah 1.0 (misal 0.9999) 
+                    // karena SPSS sangat sensitif terhadap batas ini.
+                    check_val >= 0.9999 
+                })
+            }
         },
-        _ => false 
+        
+        // GRUP NON-ITERATIF (PCA): Selalu tampil kecuali NaN
+        _ => {
+            extraction_result.communalities.iter().any(|&c| c.is_nan() || c.is_infinite())
+        }
     };
 
     // --- PERSIAPAN DATA INITIAL ---
-    
-    // A. Hitung Varians Murni (Raw Variances) dari data
-    // Digunakan untuk kolom "Raw Initial" pada PCA atau sebagai pengali pada PAF Covariance
-    let raw_variances = calculate_raw_variances(&data_matrix)?; 
-
-    // B. Hitung Squared Multiple Correlations (SMC)
-    // Ini selalu dihitung dari matriks KORELASI, tidak peduli metode ekstraksinya apa.
-    // SMC = 1 - (1 / R_ii_inverse)
+    // Hitung SMC untuk Initial Value
     let corr_matrix = calculate_matrix(&data_matrix, "correlation")?;
     let smc_values: Vec<f64> = match corr_matrix.try_inverse() {
         Some(inv) => {
             (0..var_names.len())
                 .map(|i| {
                     let r_ii = inv[(i, i)];
-                    // Pastikan tidak negatif dan valid
                     if r_ii > 0.0 { (1.0 - 1.0 / r_ii).max(0.0) } else { 0.0 }
                 })
                 .collect()
         },
-        None => vec![0.0; var_names.len()] // Jika singular, SMC dianggap 0 atau handling lain (SPSS biasanya kosong/error)
+        None => vec![0.0; var_names.len()] 
     };
 
     let mut raw_initial = HashMap::new();
     let mut rescaled_initial = HashMap::new();
     let mut extraction = HashMap::new();
+    let mut rescaled_extraction = HashMap::new();
 
     for (i, var_name) in var_names.iter().enumerate() {
         
-        // --- LOGIKA PENGISIAN INITIAL VALUES (MATCH SPSS) ---
+        // --- LOGIKA INITIAL VALUES ---
         match config.extraction.method {
             ExtractionMethod::PrincipalComponents => {
-                // KASUS PCA:
-                // Rescaled Initial: Selalu 1.0
-                // Raw Initial: Varians (jika Covariance) atau 1.0 (jika Correlation)
                 rescaled_initial.insert(var_name.clone(), 1.0);
-                
                 if is_covariance_extraction {
                     raw_initial.insert(var_name.clone(), raw_variances[i]);
                 } else {
@@ -207,29 +358,37 @@ pub fn calculate_communalities(
                 }
             },
             _ => {
-                // KASUS FACTOR ANALYSIS (PAF, ML, ULS, dll):
-                // Rescaled Initial: Nilai SMC
                 let smc = if i < smc_values.len() { smc_values[i] } else { 0.0 };
                 rescaled_initial.insert(var_name.clone(), smc);
 
-                // Raw Initial:
                 if is_covariance_extraction {
-                    // PENTING: Untuk Covariance, Initial = SMC * Variance
-                    // Ini yang memperbaiki selisih angka Anda dengan SPSS
                     let raw_val = smc * raw_variances[i];
                     raw_initial.insert(var_name.clone(), raw_val);
                 } else {
-                    // Untuk Correlation, Initial = SMC
                     raw_initial.insert(var_name.clone(), smc);
                 }
             }
         }
 
         // --- PENGISIAN EXTRACTION VALUES ---
-        // Masukkan hanya jika tidak di-suppress (Heywood case aman)
-        if !suppress_extraction {
+        // Hanya isi jika suppress == false
+        if !suppress_extraction && config.extraction.unrotated {
             if i < extraction_result.communalities.len() {
-                extraction.insert(var_name.clone(), extraction_result.communalities[i]);
+                let raw_ext_val = extraction_result.communalities[i];
+                
+                if is_covariance_extraction {
+                    // Covariance Mode
+                    extraction.insert(var_name.clone(), raw_ext_val); // Raw
+                    if raw_variances[i] > 0.0 {
+                        rescaled_extraction.insert(var_name.clone(), raw_ext_val / raw_variances[i]);
+                    } else {
+                        rescaled_extraction.insert(var_name.clone(), 0.0);
+                    }
+                } else {
+                    // Correlation Mode
+                    extraction.insert(var_name.clone(), raw_ext_val);
+                    rescaled_extraction.insert(var_name.clone(), raw_ext_val);
+                }
             }
         }
     }
@@ -237,7 +396,8 @@ pub fn calculate_communalities(
     Ok(Communalities {
         raw_initial,
         rescaled_initial,
-        extraction, // Map ini kosong jika Heywood case terjadi pada metode iteratif
+        extraction, 
+        rescaled_extraction,
         variable_order: var_names,
         extraction_matrix_type: matrix_type.to_string(),
     })

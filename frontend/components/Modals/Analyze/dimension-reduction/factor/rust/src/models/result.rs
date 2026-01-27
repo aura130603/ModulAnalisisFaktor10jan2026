@@ -131,7 +131,15 @@ pub struct Communalities {
 
     // Varians Tereskalasi (seharusnya selalu bernilai 1.0)
     pub rescaled_initial: HashMap<String, f64>,
+    
+    // Extraction values (raw untuk covariance, nilai langsung untuk correlation)
     pub extraction: HashMap<String, f64>,
+    
+    // Rescaled Extraction values (untuk covariance mode)
+    // Ini adalah extraction / variance untuk setiap variabel
+    #[serde(rename = "rescaled_extraction")]
+    pub rescaled_extraction: HashMap<String, f64>,
+    
     #[serde(rename = "variable_order")]
     pub variable_order: Vec<String>,
 
