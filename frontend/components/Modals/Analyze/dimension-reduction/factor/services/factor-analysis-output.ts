@@ -1,4 +1,5 @@
 //  perbaikan bisa (9/1/2026)
+//  REVISI: Mengelompokkan semua output dalam satu blok "Factor Analysis" (28/1/2026)
 
 import {FactorFinalResultType} from "@/components/Modals/Analyze/dimension-reduction/factor/types/factor-worker";
 import {Table} from "@/types/Table";
@@ -37,12 +38,15 @@ export async function resultFactorAnalysis({
 
         const factorAnalysisResult = async () => {
             /*
-             *  Title Result
+             *  Create Log and Single Analytic Group for Factor Analysis
+             *  Semua output akan dikelompokkan dalam satu blok "Factor Analysis"
              * */
-            const titleMessage = "Factor Analysis";
-            const logId = await addLog({ log: titleMessage });
+            const logMessage = "Factor Analysis";
+            const logId = await addLog({ log: logMessage });
+            
+            // Satu analyticId untuk semua statistik output (seperti Linear Regression)
             const analyticId = await addAnalytic(logId, {
-                title: `Factor Analysis Result`,
+                title: `Factor Analysis`,
                 note: "",
             });
 
@@ -51,12 +55,7 @@ export async function resultFactorAnalysis({
              * */
             const descriptiveStatistics = findTable("descriptive_statistics");
             if (descriptiveStatistics) {
-                const descriptiveStatsId = await addAnalytic(logId, {
-                    title: `Descriptive Statistics`,
-                    note: "",
-                });
-
-                await addStatistic(descriptiveStatsId, {
+                await addStatistic(analyticId, {
                     title: `Descriptive Statistics`,
                     description: `Descriptive Statistics`,
                     output_data: descriptiveStatistics,
@@ -69,12 +68,7 @@ export async function resultFactorAnalysis({
              * */
             const correlationMatrix = findTable("correlation_matrix");
             if (correlationMatrix) {
-                const correlationMatrixId = await addAnalytic(logId, {
-                    title: `Correlation Matrix`,
-                    note: "",
-                });
-
-                await addStatistic(correlationMatrixId, {
+                await addStatistic(analyticId, {
                     title: `Correlation Matrix`,
                     description: `Correlation Matrix`,
                     output_data: correlationMatrix,
@@ -89,12 +83,7 @@ export async function resultFactorAnalysis({
                 "inverse_correlation_matrix"
             );
             if (inverseCorrelationMatrix) {
-                const inverseCorrelationMatrixId = await addAnalytic(logId, {
-                    title: `Inverse of Correlation Matrix`,
-                    note: "",
-                });
-
-                await addStatistic(inverseCorrelationMatrixId, {
+                await addStatistic(analyticId, {
                     title: `Inverse of Correlation Matrix`,
                     description: `Inverse of Correlation Matrix`,
                     output_data: inverseCorrelationMatrix,
@@ -107,12 +96,7 @@ export async function resultFactorAnalysis({
              * */
             const covarianceMatrix = findTable("covariance_matrix");
             if (covarianceMatrix) {
-                const covarianceMatrixId = await addAnalytic(logId, {
-                    title: `Covariance Matrix`,
-                    note: "",
-                });
-
-                await addStatistic(covarianceMatrixId, {
+                await addStatistic(analyticId, {
                     title: `Covariance Matrix`,
                     description: `Covariance Matrix`,
                     output_data: covarianceMatrix,
@@ -127,12 +111,7 @@ export async function resultFactorAnalysis({
                 "inverse_covariance_matrix"
             );
             if (inverseCovarianceMatrix) {
-                const inverseCovarianceMatrixId = await addAnalytic(logId, {
-                    title: `Inverse of Covariance Matrix`,
-                    note: "",
-                });
-
-                await addStatistic(inverseCovarianceMatrixId, {
+                await addStatistic(analyticId, {
                     title: `Inverse of Covariance Matrix`,
                     description: `Inverse of Covariance Matrix`,
                     output_data: inverseCovarianceMatrix,
@@ -145,12 +124,7 @@ export async function resultFactorAnalysis({
              * */
             const kmoBartlettsTest = findTable("kmo_bartletts_test");
             if (kmoBartlettsTest) {
-                const kmoBartlettsTestId = await addAnalytic(logId, {
-                    title: `KMO and Bartlett's Test`,
-                    note: "",
-                });
-
-                await addStatistic(kmoBartlettsTestId, {
+                await addStatistic(analyticId, {
                     title: `KMO and Bartlett's Test`,
                     description: `KMO and Bartlett's Test`,
                     output_data: kmoBartlettsTest,
@@ -163,12 +137,7 @@ export async function resultFactorAnalysis({
              * */
             const antiImageMatrices = findTable("anti_image_matrices");
             if (antiImageMatrices) {
-                const antiImageMatricesId = await addAnalytic(logId, {
-                    title: `Anti-image Matrices`,
-                    note: "",
-                });
-
-                await addStatistic(antiImageMatricesId, {
+                await addStatistic(analyticId, {
                     title: `Anti-image Matrices`,
                     description: `Anti-image Matrices`,
                     output_data: antiImageMatrices,
@@ -181,12 +150,7 @@ export async function resultFactorAnalysis({
              * */
             const communalities = findTable("communalities");
             if (communalities) {
-                const communalitiesId = await addAnalytic(logId, {
-                    title: `Communalities`,
-                    note: "",
-                });
-
-                await addStatistic(communalitiesId, {
+                await addStatistic(analyticId, {
                     title: `Communalities`,
                     description: `Communalities`,
                     output_data: communalities,
@@ -194,28 +158,24 @@ export async function resultFactorAnalysis({
                 });
             }
 
-            const totalVarianceExplained = findTable(
-    "total_variance_explained"
-);
-console.log("Looking for Total Variance Explained table...", "Found:", totalVarianceExplained);
+            /*
+             *  Total Variance Explained Result 
+             * */
+            const totalVarianceExplained = findTable("total_variance_explained");
+            console.log("Looking for Total Variance Explained table...", "Found:", totalVarianceExplained);
 
-if (totalVarianceExplained) {
-    console.log("Total Variance Explained table found and processing...");
-    const totalVarianceExplainedId = await addAnalytic(logId, {
-        title: `Total Variance Explained`,
-        note: "",
-    });
-
-    await addStatistic(totalVarianceExplainedId, {
-        title: `Total Variance Explained`,
-        description: `Total Variance Explained`,
-        output_data: totalVarianceExplained,
-        components: `Total Variance Explained`,
-    });
-    console.log("Total Variance Explained table saved to result store.");
-} else {
-    console.warn("Total Variance Explained table not found in formatted results!");
-}
+            if (totalVarianceExplained) {
+                console.log("Total Variance Explained table found and processing...");
+                await addStatistic(analyticId, {
+                    title: `Total Variance Explained`,
+                    description: `Total Variance Explained`,
+                    output_data: totalVarianceExplained,
+                    components: `Total Variance Explained`,
+                });
+                console.log("Total Variance Explained table saved to result store.");
+            } else {
+                console.warn("Total Variance Explained table not found in formatted results!");
+            }
 
 
             /*
@@ -225,12 +185,7 @@ if (totalVarianceExplained) {
             const componentMatrixRaw = findRawTable("component_matrix");
             if (componentMatrix && componentMatrixRaw) {
                 const tableTitle = componentMatrixRaw.title;
-                const componentMatrixId = await addAnalytic(logId, {
-                    title: tableTitle,
-                    note: "",
-                });
-
-                await addStatistic(componentMatrixId, {
+                await addStatistic(analyticId, {
                     title: tableTitle,
                     description: tableTitle,
                     output_data: componentMatrix,
@@ -243,12 +198,7 @@ if (totalVarianceExplained) {
              * */
             const reproducedCorrelations = findTable("reproduced_correlations");
             if (reproducedCorrelations) {
-                const reproducedCorrelationsId = await addAnalytic(logId, {
-                    title: `Reproduced Correlations`,
-                    note: "",
-                });
-
-                await addStatistic(reproducedCorrelationsId, {
+                await addStatistic(analyticId, {
                     title: `Reproduced Correlations`,
                     description: `Reproduced Correlations`,
                     output_data: reproducedCorrelations,
@@ -261,12 +211,7 @@ if (totalVarianceExplained) {
              * */
             const reproducedCovariances = findTable("reproduced_covariances");
             if (reproducedCovariances) {
-                const reproducedCovariancesId = await addAnalytic(logId, {
-                    title: `Reproduced Covariances`,
-                    note: "",
-                });
-
-                await addStatistic(reproducedCovariancesId, {
+                await addStatistic(analyticId, {
                     title: `Reproduced Covariances`,
                     description: `Reproduced Covariances`,
                     output_data: reproducedCovariances,
@@ -285,12 +230,7 @@ if (totalVarianceExplained) {
             );
             if (rotatedComponentMatrix && rotatedComponentMatrixRaw) {
                 const tableTitle = rotatedComponentMatrixRaw.title;
-                const rotatedComponentMatrixId = await addAnalytic(logId, {
-                    title: tableTitle,
-                    note: "",
-                });
-
-                await addStatistic(rotatedComponentMatrixId, {
+                await addStatistic(analyticId, {
                     title: tableTitle,
                     description: tableTitle,
                     output_data: rotatedComponentMatrix,
@@ -309,15 +249,7 @@ if (totalVarianceExplained) {
             );
             if (componentTransformationMatrix && componentTransformationMatrixRaw) {
                 const tableTitle = componentTransformationMatrixRaw.title;
-                const componentTransformationMatrixId = await addAnalytic(
-                    logId,
-                    {
-                        title: tableTitle,
-                        note: "",
-                    }
-                );
-
-                await addStatistic(componentTransformationMatrixId, {
+                await addStatistic(analyticId, {
                     title: tableTitle,
                     description: tableTitle,
                     output_data: componentTransformationMatrix,
@@ -330,12 +262,7 @@ if (totalVarianceExplained) {
              * */
             const patternMatrix = findTable("pattern_matrix");
             if (patternMatrix) {
-                const patternMatrixId = await addAnalytic(logId, {
-                    title: `Pattern Matrix`,
-                    note: "",
-                });
-
-                await addStatistic(patternMatrixId, {
+                await addStatistic(analyticId, {
                     title: `Pattern Matrix`,
                     description: `Pattern Matrix`,
                     output_data: patternMatrix,
@@ -348,12 +275,7 @@ if (totalVarianceExplained) {
              * */
             const structureMatrix = findTable("structure_matrix");
             if (structureMatrix) {
-                const structureMatrixId = await addAnalytic(logId, {
-                    title: `Structure Matrix`,
-                    note: "",
-                });
-
-                await addStatistic(structureMatrixId, {
+                await addStatistic(analyticId, {
                     title: `Structure Matrix`,
                     description: `Structure Matrix`,
                     output_data: structureMatrix,
@@ -372,15 +294,7 @@ if (totalVarianceExplained) {
             );
             if (componentCorrelationMatrix && componentCorrelationMatrixRaw) {
                 const tableTitle = componentCorrelationMatrixRaw.title;
-                const componentCorrelationMatrixId = await addAnalytic(
-                    logId,
-                    {
-                        title: tableTitle,
-                        note: "",
-                    }
-                );
-
-                await addStatistic(componentCorrelationMatrixId, {
+                await addStatistic(analyticId, {
                     title: tableTitle,
                     description: tableTitle,
                     output_data: componentCorrelationMatrix,
@@ -399,23 +313,13 @@ if (totalVarianceExplained) {
             );
             if (componentScoreCoefficientMatrix && componentScoreCoefficientMatrixRaw) {
                 const tableTitle = componentScoreCoefficientMatrixRaw.title;
-                const componentScoreCoefficientMatrixId = await addAnalytic(
-                    logId,
-                    {
-                        title: tableTitle,
-                        note: "",
-                    }
-                );
-
-                await addStatistic(componentScoreCoefficientMatrixId, {
+                await addStatistic(analyticId, {
                     title: tableTitle,
                     description: tableTitle,
                     output_data: componentScoreCoefficientMatrix,
                     components: tableTitle,
                 });
             }
-
-            
 
             /*
              * 📈 Component Score Covariance Matrix Result 📈
@@ -428,15 +332,7 @@ if (totalVarianceExplained) {
             );
             if (componentScoreCovarianceMatrix && componentScoreCovarianceMatrixRaw) {
                 const tableTitle = componentScoreCovarianceMatrixRaw.title;
-                const componentScoreCovarianceMatrixId = await addAnalytic(
-                    logId,
-                    {
-                        title: tableTitle,
-                        note: "",
-                    }
-                );
-
-                await addStatistic(componentScoreCovarianceMatrixId, {
+                await addStatistic(analyticId, {
                     title: tableTitle,
                     description: tableTitle,
                     output_data: componentScoreCovarianceMatrix,
@@ -444,35 +340,27 @@ if (totalVarianceExplained) {
                 });
             }
 
+            /*
+             * 📐 Loading Plot Logic 📐
+             */
+            // Ambil data dari Rust (sesuai struct baru)
+            const loadingPlotDataRaw = (formattedResult as any).loadingPlotChart;
 
+            if (loadingPlotDataRaw) {
+                // Kita simpan data mentah saja (JSON), karena komponen React yang akan mengolahnya
+                const chartPayload = {
+                    type: "PLOTLY_LOADING_PLOT", // Penanda untuk Frontend merender komponen yg benar
+                    data: loadingPlotDataRaw
+                };
 
-
-/*
- * 📐 Loading Plot Logic 📐
- */
-// Ambil data dari Rust (sesuai struct baru)
-const loadingPlotDataRaw = (formattedResult as any).loadingPlotChart;
-
-if (loadingPlotDataRaw) {
-    const loadingPlotId = await addAnalytic(logId, {
-        title: `Loading Plot`,
-        note: "Interactive Plotly Visualization",
-    });
-
-    // Kita simpan data mentah saja (JSON), karena komponen React yang akan mengolahnya
-    const chartPayload = {
-        type: "PLOTLY_LOADING_PLOT", // Penanda untuk Frontend merender komponen yg benar
-        data: loadingPlotDataRaw
-    };
-
-    await addStatistic(loadingPlotId, {
-        title: `Loading Plot`,
-        description: `Factor Loadings (${loadingPlotDataRaw.axis_labels.length} Components)`,
-        // Simpan JSON mentah ini ke database/state
-        output_data: JSON.stringify(chartPayload),
-        components: "LoadingPlot", 
-    });
-}
+                await addStatistic(analyticId, {
+                    title: `Loading Plot`,
+                    description: `Factor Loadings (${loadingPlotDataRaw.axis_labels.length} Components)`,
+                    // Simpan JSON mentah ini ke database/state
+                    output_data: JSON.stringify(chartPayload),
+                    components: "LoadingPlot", 
+                });
+            }
 
 
             /*
@@ -483,13 +371,7 @@ if (loadingPlotDataRaw) {
             const chartData = (formattedResult as any).screePlotChart;
             
             if (chartData) {
-                // Buat container analitik baru khusus untuk plot (opsional, bisa digabung)
-                const screeChartId = await addAnalytic(logId, {
-                    title: `Scree Plot`,
-                    note: "",
-                });
-
-                await addStatistic(screeChartId, {
+                await addStatistic(analyticId, {
                     title: `Scree Plot`,
                     description: `Eigenvalues vs Component Number`,
                     output_data: JSON.stringify(chartData),
@@ -498,18 +380,13 @@ if (loadingPlotDataRaw) {
             }
 
 
-        /*
+            /*
              * 📋 Scree Plot Data Table📋
              * Menampilkan data tabel di bawah chart
              * */
             const screePlotTable = findTable("scree_plot");
             if (screePlotTable) {
-                const screePlotId = await addAnalytic(logId, {
-                    title: `Scree Plot Data Table`,
-                    note: "",
-                });
-
-                await addStatistic(screePlotId, {
+                await addStatistic(analyticId, {
                     title: `Scree Plot Data`,
                     description: `Table of Eigenvalues`,
                     output_data: screePlotTable,
