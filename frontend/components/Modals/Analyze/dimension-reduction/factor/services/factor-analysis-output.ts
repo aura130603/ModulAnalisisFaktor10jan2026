@@ -1,11 +1,13 @@
 //  perbaikan bisa (9/1/2026)
 //  REVISI: Mengelompokkan semua output dalam satu blok "Factor Analysis" (28/1/2026)
+//  REVISI: Menambahkan SPSS-style syntax log untuk Factor Analysis (29/1/2026)
 
 import {FactorFinalResultType} from "@/components/Modals/Analyze/dimension-reduction/factor/types/factor-worker";
 import {Table} from "@/types/Table";
 import {useResultStore} from "@/stores/useResultStore";
 import {useDataStore, ColumnData} from "@/stores/useDataStore";
 import {useVariableStore} from "@/stores/useVariableStore";
+import {generateFactorAnalysisLog} from "./factor-log-generator";
 
 export async function resultFactorAnalysis({
     formattedResult,
@@ -40,8 +42,10 @@ export async function resultFactorAnalysis({
             /*
              *  Create Log and Single Analytic Group for Factor Analysis
              *  Semua output akan dikelompokkan dalam satu blok "Factor Analysis"
+             *  Generate SPSS-style syntax log berdasarkan konfigurasi yang dipilih user
              * */
-            const logMessage = "Factor Analysis";
+            const logMessage = generateFactorAnalysisLog(configData);
+            console.log("[Factor Analysis] Generated SPSS-style log:", logMessage);
             const logId = await addLog({ log: logMessage });
             
             // Satu analyticId untuk semua statistik output (seperti Linear Regression)

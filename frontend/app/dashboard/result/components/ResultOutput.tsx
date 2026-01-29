@@ -126,7 +126,8 @@ const ResultOutput: React.FC = () => {
               data-testid={`result-log-${log.id}`}
             >
               <div className="text-sm font-medium text-muted-foreground px-1" data-testid={`log-header-${log.id}`}>
-                Log {log.id}: {log.log}
+                <span className="font-semibold">Log {log.id}:</span>
+                <pre className="mt-1 whitespace-pre-wrap font-mono text-xs bg-muted/30 p-2 rounded-md overflow-x-auto">{log.log}</pre>
               </div>
               {log.analytics?.map((analytic) => (
                 <Card
